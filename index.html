@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Цветочный магазин «Bloom</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --primary: #d63384;
+      --primary-dark: #a61e61;
+      --bg: #fff5f8;
+      --text: #333;
+      --card-bg: #ffffff;
+      --shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    header {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: #fff;
+      padding: 2rem 1rem;
+      text-align: center;
+    }
+    header h1 {
+      margin: 0 0 0.5rem;
+      font-size: 2.2rem;
+    }
+    header p {
+      margin: 0;
+      opacity: 0.95;
+    }
+    nav {
+      background: #fff;
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    nav ul {
+      list-style: none;
+      margin: 0;
+      padding: 0.75rem 1rem;
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    nav a {
+      text-decoration: none;
+      color: var(--primary);
+      font-weight: 600;
+    }
+    nav a:hover {
+      color: var(--primary-dark);
+    }
+    main {
+      max-width: 1100px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    section {
+      margin-bottom: 3rem;
+    }
+    h2 {
+      color: var(--primary-dark);
+      margin-bottom: 1rem;
+    }
+    .catalog {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem;
+    }
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    }
+    .card-img {
+      height: 180px;
+      background: #ffd6e7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+    }
+    .card-body {
+      padding: 1rem;
+    }
+    .card-title {
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    .card-price {
+      color: var(--primary);
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .card-desc {
+      font-size: 0.95rem;
+      margin-bottom: 0.75rem;
+    }
+    .btn {
+      display: inline-block;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 0.6rem 1.1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .btn:hover {
+      background: var(--primary-dark);
+    }
+    form {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      max-width: 600px;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.4rem;
+      font-weight: 600;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 0.6rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      background: #fff;
+      box-shadow: var(--shadow);
+      margin-top: 2rem;
+    }
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.8rem; }
+      nav ul { gap: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌸 Bloom — Цветочный магазин</h1>
+    <p>Свежие букеты с доставкой в день заказа</p>
+  </header>
+
+  <nav>
+    <ul>
+      <li><a href="#catalog">Каталог</a></li>
+      <li><a href="#about">О нас</a></li>
+      <li><a href="#delivery">Доставка</a></li>
+      <li><a href="#order">Заказать</a></li>
+      <li><a href="#contacts">Контакты</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <section id="catalog">
+      <h2>Популярные букеты</h2>
+      <div class="catalog">
+        <!-- Карточка 1 -->
+        <div class="card">
+          <div class="card-img">🌹</div>
+          <div class="card-body">
+            <div class="card-title">"Нежность"</div>
+            <div class="card-price">2 490 ₽</div>
+            <div class="card-desc">Розы, эустома, зелень. Идеально для романтичного подарка.</div>
+            <a href="#order" class="btn" onclick="selectBouquet('Нежность')">Заказать</a>
+          </div>
+        </div>
+        <!-- Карточка 2 -->
+        <div class="card">
+          <div class="card-img">🌻</div>
+          <div class="card-body">
+            <div class="card-title">"Солнечный день"</div>
+            <div class="card-price">1 990 ₽</div>
+            <div class="card-desc">Яркие подсолнухи и ромашки в крафтовой упаковке.</div>
+            <a href="#order" class="btn" onclick="selectBouquet('Солнечный день')">Заказать</a>
+          </div>
+        </div>
+        <!-- Карточка 3 -->
+        <div class="card">
+          <div class="card-img">🌷</div>
+          <div class="card-body">
+            <div class="card-title">"Весенний микс"</div>
+            <div class="card-price">2 190 ₽</div>
+            <div class="card-desc">Тюльпаны разных оттенков, зелень, лента.</div>
+            <a href="#order" class="btn" onclick="selectBouquet('Весенний микс')">Заказать</a>
+          </div>
+        </div>
+        <!-- Карточка 4 -->
+        <div class="card">
+          <div class="card-img">💐</div>
+          <div class="card-body">
+            <div class="card-title">"Авторский букет"</div>
+            <div class="card-price">3 290 ₽</div>
+            <div class="card-desc">Уникальная композиция от флориста под ваш повод.</div>
+            <a href="#order" class="btn" onclick="selectBouquet('Авторский букет')">Заказать</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="about">
+      <h2>О магазине</h2>
+      <p>Мы собираем букеты из свежих цветов каждое утро. Работаем с местными поставщиками и гарантируем стойкость каждого растения. Доставляем по городу в течение 2 часов.</p>
+    </section>
+
+    <section id="delivery">
+      <h2>Доставка и оплата</h2>
+      <ul>
+        <li>Бесплатная доставка при заказе от 3 000 ₽.</li>
+        <li>Срок доставки: 1–2 часа по городу, возможна доставка к точному времени.</li>
+        <li>Оплата: онлайн на сайте, картой при получении, наличными.</li>
+      </ul>
+    </section>
+
+    <section id="order">
+      <h2>Оформить заказ</h2>
+      <form onsubmit="submitOrder(event)">
+        <label for="name">Ваше имя</label>
+        <input type="text" id="name" name="name" required placeholder="Иван Иванов" />
+
+        <label for="phone">Телефон</label>
+        <input type="tel" id="phone" name="phone" required placeholder="+7 (___) ___-__-__" />
+
+        <label for="bouquet">Букет</label>
+        <select id="bouquet" name="bouquet">
+          <option value="Нежность">"Нежность" — 2 490 ₽</option>
+          <option value="Солнечный день">"Солнечный день" — 1 990 ₽</option>
+          <option value="Весенний микс">"Весенний микс" — 2 190 ₽</option>
+          <option value="Авторский букет">"Авторский букет" — 3 290 ₽</option>
+          <option value="Другой">Другой (укажите в комментарии)</option>
+        </select>
+
+        <label for="date">Дата и время доставки</label>
+        <input type="datetime-local" id="date" name="date" required />
+
+        <label for="address">Адрес доставки</label>
+        <input type="text" id="address" name="address" required placeholder="Улица, дом, квартира" />
+
+        <label for="comment">Комментарий к заказу</label>
+        <textarea id="comment" name="comment" rows="3" placeholder="Пожелания по оформлению, открытка и т.д."></textarea>
+
+        <button type="submit" class="btn">Отправить заказ</button>
+      </form>
+    </section>
+
+    <section id="contacts">
+      <h2>Контакты</h2>
+      <p>📍 г. Москва, ул. Цветочная, 12<br>
+         📞 +7 (999) 000-00-00<br>
+         ✉️ hello@bloom-flowers.ru<br>
+         🕒 Ежедневно с 9:00 до 21:00</p>
+    </section>
+  </main>
+
+  <footer>
+    © 2026 Цветочный магазин «Bloom. Все права защищены.
+  </footer>
+
+  <script>
+    function selectBouquet(name) {
+      document.getElementById('bouquet').value = name;
+    }
+
+    function submitOrder(e) {
+      e.preventDefault();
+      const name = document.getElementById('name').value;
+      const phone = document.getElementById('phone').value;
+      const bouquet = document.getElementById('bouquet').value;
+      const date = document.getElementById('date').value;
+      const address = document.getElementById('address').value;
+      const comment = document.getElementById('comment').value;
+
+      // Здесь можно добавить отправку в Telegram / на почту / в CRM.
+      // Для примера просто покажем сообщение:
+      alert(`Спасибо, ${name}! Ваш заказ на букет "${bouquet}" принят.\nМы свяжемся с вами по номеру ${phone} для подтверждения.`);
+      e.target.reset();
+    }
+  </script>
+</body>
+</html>
