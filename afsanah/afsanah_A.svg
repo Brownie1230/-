@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000">
+  <defs>
+    <linearGradient id="gt" x1="200" y1="0" x2="800" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#08402F"/><stop offset="0.38" stop-color="#17664A"/><stop offset="0.6" stop-color="#8C8A3E"/>
+      <stop offset="0.8" stop-color="#C29A3C"/><stop offset="1" stop-color="#D4B160"/></linearGradient>
+    <linearGradient id="gl" x1="150" y1="0" x2="850" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#08402F"/><stop offset="0.5" stop-color="#17664A"/><stop offset="1" stop-color="#C29A3C"/></linearGradient>
+    <linearGradient id="lineL" x1="150" y1="0" x2="455" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#08402F" stop-opacity="0"/><stop offset="1" stop-color="#17664A"/></linearGradient>
+    <linearGradient id="lineR" x1="545" y1="0" x2="850" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C29A3C"/><stop offset="1" stop-color="#D4B160" stop-opacity="0"/></linearGradient>
+  </defs>
+  <rect width="1000" height="1000" fill="#fff"/>
+  <g transform="translate(0 365) scale(1 1)">
+    <path d="M150 0 H455" stroke="url(#lineL)" stroke-width="1.6" fill="none"/>
+    <path d="M545 0 H850" stroke="url(#lineR)" stroke-width="1.6" fill="none"/>
+    <path d="M455 0 C470 0 478 -6 485 -14 C490 -20 495 -24 500 -34 C505 -24 510 -20 515 -14 C522 -6 530 0 545 0" fill="none" stroke="url(#gl)" stroke-width="1.6"/>
+    <path d="M300 -5 L305 0 L300 5 L295 0 Z" fill="#17664A"/>
+    <path d="M700 -5 L705 0 L700 5 L695 0 Z" fill="#C29A3C"/>
+    <circle cx="420" cy="0" r="2.4" fill="#17664A"/><circle cx="580" cy="0" r="2.4" fill="#C29A3C"/>
+    <rect x="494" y="-53" width="12" height="12" transform="rotate(0 500 -47)" fill="none" stroke="url(#gl)" stroke-width="1.6"/><rect x="494" y="-53" width="12" height="12" transform="rotate(45 500 -47)" fill="none" stroke="url(#gl)" stroke-width="1.6"/><circle cx="500" cy="-47" r="2.0999999999999996" fill="url(#gl)"/>
+  </g>
+  <text x="500" y="535" text-anchor="middle" font-family="GV" font-size="190" fill="url(#gt)">Afsanah</text>
+  <g transform="translate(0 628) scale(1 -1)">
+    <path d="M150 0 H455" stroke="url(#lineL)" stroke-width="1.6" fill="none"/>
+    <path d="M545 0 H850" stroke="url(#lineR)" stroke-width="1.6" fill="none"/>
+    <path d="M455 0 C470 0 478 -6 485 -14 C490 -20 495 -24 500 -34 C505 -24 510 -20 515 -14 C522 -6 530 0 545 0" fill="none" stroke="url(#gl)" stroke-width="1.6"/>
+    <path d="M300 -5 L305 0 L300 5 L295 0 Z" fill="#17664A"/>
+    <path d="M700 -5 L705 0 L700 5 L695 0 Z" fill="#C29A3C"/>
+    <circle cx="420" cy="0" r="2.4" fill="#17664A"/><circle cx="580" cy="0" r="2.4" fill="#C29A3C"/>
+    <rect x="494" y="-53" width="12" height="12" transform="rotate(0 500 -47)" fill="none" stroke="url(#gl)" stroke-width="1.6"/><rect x="494" y="-53" width="12" height="12" transform="rotate(45 500 -47)" fill="none" stroke="url(#gl)" stroke-width="1.6"/><circle cx="500" cy="-47" r="2.0999999999999996" fill="url(#gl)"/>
+  </g>
+</svg>
