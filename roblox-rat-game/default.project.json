@@ -1,0 +1,23 @@
+{
+  "name": "KrysinyPerepoloh",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Config": {
+        "$path": "src/ReplicatedStorage/Config.lua"
+      }
+    },
+    "ServerScriptService": {
+      "RatGame": {
+        "$path": "src/ServerScriptService"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "RatHUD": {
+          "$path": "src/StarterPlayerScripts/RatHUD.client.lua"
+        }
+      }
+    }
+  }
+}
