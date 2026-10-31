@@ -346,23 +346,6 @@ end)
 advance(0.2)
 check(alice:GetAttribute("Hat") == "cap", "equip cap")
 
--- переключение языка
-local langBtn = guiText(alice, function(d)
-	return d:IsA("TextButton") and d.Text == "🌐 English"
-end)
-check(langBtn ~= nil, "language button")
-click(langBtn)
-advance(0.3)
-check(alice:GetAttribute("Lang") == "en", "language switched to en")
-check(guiText(alice, function(d)
-	return d:IsA("TextButton") and d.Text == "🎩 Hats"
-end) ~= nil, "UI switched to english")
-click(guiText(alice, function(d)
-	return d:IsA("TextButton") and d.Text == "🌐 Русский"
-end))
-advance(0.3)
-check(alice:GetAttribute("Lang") == "ru", "language back to ru")
-
 -- открыть магазин в интерфейсе
 local shopBtn = guiText(alice, function(d)
 	return d:IsA("TextButton") and d.Text == "🎩 Шапки"

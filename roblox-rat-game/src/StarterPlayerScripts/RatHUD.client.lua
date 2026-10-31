@@ -18,11 +18,10 @@ local volunteerEvent = remotes:WaitForChild("ChefVolunteer")
 local fxEvent = remotes:WaitForChild("FX")
 local shopEvent = remotes:WaitForChild("ShopAction")
 local squeakEvent = remotes:WaitForChild("Squeak")
-local languageEvent = remotes:WaitForChild("SetLanguage")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- язык игрока ("ru" или "en") и перевод
+-- язык игрока ("ru" или "en") выбирается автоматически по настройкам Roblox
 local function lang()
 	return Locale.detect(player)
 end
@@ -321,7 +320,7 @@ local tasksLabel = text(tasksPanel, {
 local lobbyBar = make("Frame", gui, {
 	AnchorPoint = Vector2.new(0.5, 1),
 	Position = UDim2.new(0.5, 0, 1, -18),
-	Size = UDim2.fromOffset(760, 54),
+	Size = UDim2.fromOffset(560, 54),
 	BackgroundTransparency = 1,
 })
 make("UIListLayout", lobbyBar, {
@@ -331,7 +330,6 @@ make("UIListLayout", lobbyBar, {
 })
 local shopButton = button(lobbyBar, { Size = UDim2.fromOffset(180, 54), Text = "" }, Color3.fromRGB(180, 130, 255))
 local chefButton = button(lobbyBar, { Size = UDim2.fromOffset(360, 54), Text = "" })
-local langButton = button(lobbyBar, { Size = UDim2.fromOffset(170, 54), Text = "" }, Color3.fromRGB(110, 190, 255))
 local wantsChef = false
 local function refreshChefButton()
 	if wantsChef then
@@ -342,14 +340,7 @@ local function refreshChefButton()
 		chefButton.BackgroundColor3 = Color3.fromRGB(255, 170, 60)
 	end
 end
-langButton.Activated:Connect(function()
-	local newLang = "ru"
-	if lang() == "ru" then
-		newLang = "en"
-	end
-	player:SetAttribute("Lang", newLang) -- сразу у себя
-	languageEvent:FireServer(newLang) -- и на сервере (сообщения)
-end)
+
 refreshChefButton()
 chefButton.Activated:Connect(function()
 	wantsChef = not wantsChef
@@ -879,7 +870,6 @@ RunService.Heartbeat:Connect(function(dt)
 	staminaCaption.Text = L("stamina")
 	shopButton.Text = L("shop_button")
 	shopTitle.Text = L("shop_title")
-	langButton.Text = L("lang_button")
 	refreshChefButton()
 	hungerBg.Visible = r == "Rat"
 	staminaBg.Visible = r == "Rat" or r == "Chef"

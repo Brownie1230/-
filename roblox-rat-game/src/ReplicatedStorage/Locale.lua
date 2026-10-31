@@ -1,7 +1,7 @@
 -- Locale (ModuleScript) — ReplicatedStorage
 -- Все тексты игры на двух языках: русский (ru) и английский (en).
--- Язык выбирается автоматически по настройкам Roblox игрока,
--- а в лобби можно переключить кнопкой 🌐.
+-- Язык выбирается автоматически по настройкам Roblox игрока:
+-- русскоязычным — русский, всем остальным — английский.
 -- Хочешь добавить язык? Скопируй блок en, переведи и добавь проверку в Locale.detect.
 
 local Locale = {}
@@ -71,7 +71,6 @@ S.ru = {
 	shop_title = "🎩 Шапки для крысы",
 	chef_yes = "👨‍🍳 Хочу быть поваром: ДА",
 	chef_no = "👨‍🍳 Хочу быть поваром: НЕТ",
-	lang_button = "🌐 English",
 	equipped = "Надето ✓",
 	equip = "Надеть",
 	buy = "Купить 🧀%d",
@@ -169,7 +168,6 @@ S.en = {
 	shop_title = "🎩 Rat hats",
 	chef_yes = "👨‍🍳 I want to be the chef: YES",
 	chef_no = "👨‍🍳 I want to be the chef: NO",
-	lang_button = "🌐 Русский",
 	equipped = "Wearing ✓",
 	equip = "Wear",
 	buy = "Buy 🧀%d",
