@@ -22,6 +22,7 @@ end
 ------------------------------------------------------------------------
 local files = {
 	"ReplicatedStorage/Config.lua",
+	"ReplicatedStorage/Locale.lua",
 	"ServerScriptService/GameManager.server.lua",
 	"ServerScriptService/RatBuilder.lua",
 	"ServerScriptService/DataService.lua",
@@ -45,6 +46,7 @@ end
 -- Собираем "место"
 ------------------------------------------------------------------------
 M.addScript("ModuleScript", "Config", M.ReplicatedStorage, ROOT .. "ReplicatedStorage/Config.lua")
+M.addScript("ModuleScript", "Locale", M.ReplicatedStorage, ROOT .. "ReplicatedStorage/Locale.lua")
 local modules = {}
 for _, n in ipairs({ "RatBuilder", "DataService", "SabotageService", "ChefService", "ChefAI", "TestMapBuilder" }) do
 	modules[n] = M.addScript("ModuleScript", n, M.ServerScriptService, ROOT .. "ServerScriptService/" .. n .. ".lua")
@@ -60,8 +62,8 @@ local CS = M.CollectionService
 local RS = M.ReplicatedStorage
 local getSignal = M.getSignal
 
-local function join(name)
-	local p = M.addPlayer(name)
+local function join(name, localeId)
+	local p = M.addPlayer(name, localeId)
 	for _, s in ipairs(clientScripts) do
 		M.runScript(s, p)
 	end
@@ -102,6 +104,15 @@ local function station(name)
 		end
 	end
 	error("no station " .. name)
+end
+
+local function toolOf(container, kind)
+	for _, t in ipairs(container:GetChildren()) do
+		if t:IsA("Tool") and t:GetAttribute("ToolKind") == kind then
+			return t
+		end
+	end
+	return nil
 end
 
 local function rootOf(p)
@@ -169,12 +180,9 @@ local function doStation(p, st)
 	end
 	if kind == "Code" then
 		local code = nil
-		for _, l in ipairs(descendants(frame, function(d)
-			return d:IsA("TextLabel")
-		end)) do
-			if l.Text:match("^%d%d%d%d$") then
-				code = l.Text
-			end
+		local codeLabel = frame:FindFirstChild("CodeText", true)
+		if codeLabel and codeLabel.Text:match("^%d%d%d%d$") then
+			code = codeLabel.Text
 		end
 		check(code ~= nil, "code note visible")
 		local buttons = buttonsIn(frame)
@@ -236,12 +244,7 @@ local function doStation(p, st)
 		end)
 		check(#wires == 4 or RS:GetAttribute("State") ~= "Playing", "wires drawn: " .. #wires .. " station " .. st.Name .. " frameAlive " .. tostring(miniFrame(p) == frame) .. " broken " .. tostring(st:GetAttribute("Broken")) .. " state " .. tostring(RS:GetAttribute("State")))
 	elseif kind == "Mash" then
-		local gnaw
-		for _, b in ipairs(buttonsIn(frame)) do
-			if b.Text:find("ГРЫЗТЬ") then
-				gnaw = b
-			end
-		end
+		local gnaw = frame:FindFirstChild("GnawButton", true)
 		check(gnaw ~= nil, "gnaw button")
 		for _ = 1, 25 do
 			if miniFrame(p) ~= frame then
@@ -251,12 +254,8 @@ local function doStation(p, st)
 			M.step(0.05)
 		end
 	elseif kind == "Timing" then
-		local stop, zone, needle
-		for _, b in ipairs(buttonsIn(frame)) do
-			if b.Text:find("СТОП") then
-				stop = b
-			end
-		end
+		local stop = frame:FindFirstChild("StopButton", true)
+		local zone, needle
 		for _, f in ipairs(descendants(frame, function(d)
 			return d:IsA("Frame")
 		end)) do
@@ -317,7 +316,7 @@ end
 ------------------------------------------------------------------------
 -- 2. Первый игрок, лобби, магазин
 ------------------------------------------------------------------------
-local alice = join("Alice")
+local alice = join("Alice", "ru-ru")
 advance(1)
 check(alice:GetAttribute("Role") == "Lobby", "alice in lobby")
 check(alice:GetAttribute("Coins") == 0, "alice coins 0")
@@ -346,6 +345,23 @@ M.runAs(alice, function()
 end)
 advance(0.2)
 check(alice:GetAttribute("Hat") == "cap", "equip cap")
+
+-- переключение языка
+local langBtn = guiText(alice, function(d)
+	return d:IsA("TextButton") and d.Text == "🌐 English"
+end)
+check(langBtn ~= nil, "language button")
+click(langBtn)
+advance(0.3)
+check(alice:GetAttribute("Lang") == "en", "language switched to en")
+check(guiText(alice, function(d)
+	return d:IsA("TextButton") and d.Text == "🎩 Hats"
+end) ~= nil, "UI switched to english")
+click(guiText(alice, function(d)
+	return d:IsA("TextButton") and d.Text == "🌐 Русский"
+end))
+advance(0.3)
+check(alice:GetAttribute("Lang") == "ru", "language back to ru")
 
 -- открыть магазин в интерфейсе
 local shopBtn = guiText(alice, function(d)
@@ -379,7 +395,7 @@ advance(0.5)
 check(alice:GetAttribute("BaseSpeed") == 14, "rat speed 14 got " .. tostring(alice:GetAttribute("BaseSpeed")))
 check(M.workspace:FindFirstChild("ChefNPC") ~= nil, "AI chef spawned")
 local npc = M.workspace:FindFirstChild("ChefNPC")
-check(npc and npc:FindFirstChild("Сачок") ~= nil, "AI holds net")
+check(npc and toolOf(npc, "Net") ~= nil, "AI holds net")
 check(npc and npc:FindFirstChild("ChefHat") ~= nil, "AI chef hat")
 -- клиент выставил скорость
 local hum = alice.Character:FindFirstChildOfClass("Humanoid")
@@ -479,8 +495,8 @@ check(station("Fridge"):GetAttribute("Broken") == false, "stations reset")
 ------------------------------------------------------------------------
 -- 4. Раунд 2: трое, повар — игрок
 ------------------------------------------------------------------------
-local bob = join("Bob")
-local cara = join("Cara")
+local bob = join("Bob", "en-us")
+local cara = join("Cara", "ru-ru")
 advance(1)
 M.runAs(bob, function()
 	RS.Remotes.ChefVolunteer:FireServer(true)
@@ -491,7 +507,14 @@ end, 30), "round 2 playing")
 advance(0.5)
 check(bob:GetAttribute("Role") == "Chef", "bob is chef (volunteer)")
 check(M.workspace:FindFirstChild("ChefNPC") == nil, "no AI when human chef")
-check(bob.Backpack:FindFirstChild("Сачок") ~= nil and bob.Backpack:FindFirstChild("Мышеловка") ~= nil, "chef tools")
+check(toolOf(bob.Backpack, "Net") ~= nil and toolOf(bob.Backpack, "Trap") ~= nil, "chef tools")
+check(toolOf(bob.Backpack, "Net").Name == "Net", "english tool name for bob")
+check(guiText(bob, function(d)
+	return d.Text == "👨‍🍳 You're the chef"
+end) ~= nil, "bob UI in english")
+check(guiText(alice, function(d)
+	return d.Text == "🐀 Ты — крыса"
+end) ~= nil, "alice UI in russian")
 check(bob:GetAttribute("BaseSpeed") == 17, "chef speed")
 check(bob.Character:FindFirstChild("ChefHat") ~= nil, "chef hat")
 
@@ -500,7 +523,7 @@ alice.Character:PivotTo(CFrame.new(-10, 1.2, -30))
 local caraPos = rootOf(cara).Position
 bob.Character:PivotTo(CFrame.lookAt(caraPos + Vector3.new(0, 0, 4), caraPos))
 local bobCoins = bob:GetAttribute("Coins")
-getSignal(bob.Backpack["Сачок"], "Activated"):Fire()
+getSignal(toolOf(bob.Backpack, "Net"), "Activated"):Fire()
 advance(0.2)
 check(cara:GetAttribute("Caught") == true, "bob caught cara")
 check(bob:GetAttribute("Coins") == bobCoins + 6, "chef coins for catch")
@@ -515,14 +538,20 @@ advance(0.2)
 check(cara:GetAttribute("Caught") == false, "cara freed")
 check(cara:GetAttribute("BaseSpeed") == 14, "cara speed restored")
 check(alice:GetAttribute("Coins") == aliceCoins + 8, "rescue coins")
+check(guiText(bob, function(d)
+	return d.Text:find("opened the cage") ~= nil
+end) ~= nil, "bob got english message")
+check(guiText(alice, function(d)
+	return d.Text:find("открыл клетку") ~= nil
+end) ~= nil, "alice got russian message")
 
 -- мышеловка
 bob.Character:PivotTo(CFrame.new(0, 3, 0))
-getSignal(bob.Backpack["Мышеловка"], "Activated"):Fire()
+getSignal(toolOf(bob.Backpack, "Trap"), "Activated"):Fire()
 advance(0.2)
 local trap = M.workspace:FindFirstChild("Mousetrap")
 check(trap ~= nil, "trap placed")
-getSignal(bob.Backpack["Мышеловка"], "Activated"):Fire() -- перезарядка
+getSignal(toolOf(bob.Backpack, "Trap"), "Activated"):Fire() -- перезарядка
 advance(0.2)
 if trap then
 	getSignal(trap.Sensor, "Touched"):Fire(rootOf(alice))
@@ -668,7 +697,7 @@ if not DS_FAIL then
 	check(dan:GetAttribute("Wins") == 3, "dan wins loaded")
 	check(dan:GetAttribute("Hat") == "halo", "dan hat loaded")
 	check(not dan:GetAttribute("OwnedHats"):find("hacked"), "unknown hat filtered")
-	check(dan.leaderstats["Сыр 🧀"].Value == 77, "leaderstats coins")
+	check(dan.leaderstats["🧀 Cheese"].Value == 77, "leaderstats coins")
 end
 advance(30)
 

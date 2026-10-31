@@ -12,6 +12,7 @@ local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local Locale = require(ReplicatedStorage:WaitForChild("Locale"))
 local fxEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("FX")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -127,7 +128,7 @@ local function squeakBubble(character)
 	label.TextColor3 = Color3.fromRGB(40, 30, 40)
 	label.Font = Enum.Font.FredokaOne
 	label.TextScaled = true
-	label.Text = "Пи-пи! 🐭"
+	label.Text = Locale.forPlayer(player, "squeak")
 	label.Parent = bb
 	local c = Instance.new("UICorner")
 	c.CornerRadius = UDim.new(0.5, 0)

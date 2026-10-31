@@ -7,6 +7,7 @@ local CollectionService = game:GetService("CollectionService")
 local StarterPlayer = game:GetService("StarterPlayer")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local Locale = require(ReplicatedStorage:WaitForChild("Locale"))
 
 Players.CharacterAutoLoads = false -- персонажей создаём сами (крыса или человек)
 StarterPlayer.EnableMouseLockOption = false -- Shift нужен для бега
@@ -25,6 +26,7 @@ local notifyEvent = makeRemote("Notify")
 local volunteerEvent = makeRemote("ChefVolunteer")
 local fxEvent = makeRemote("FX")
 local squeakEvent = makeRemote("Squeak")
+local languageEvent = makeRemote("SetLanguage")
 makeRemote("ShopAction")
 makeRemote("MiniGame")
 
@@ -68,12 +70,15 @@ local function setState(s)
 	ReplicatedStorage:SetAttribute("State", s)
 end
 
-local function notifyAll(text, kind)
-	notifyEvent:FireAllClients(text, kind or "info")
+-- Сообщение каждому игроку на его языке (ключ из Locale + аргументы)
+local function notifyPlayer(player, kind, key, ...)
+	notifyEvent:FireClient(player, Locale.forPlayer(player, key, ...), kind or "info")
 end
 
-local function notifyPlayer(player, text, kind)
-	notifyEvent:FireClient(player, text, kind or "info")
+local function notifyAll(kind, key, ...)
+	for _, p in ipairs(Players:GetPlayers()) do
+		notifyPlayer(p, kind, key, ...)
+	end
 end
 
 local function fxAll(kind, a, b)
@@ -149,7 +154,7 @@ local function reward(player, kind)
 	end
 	DataService.addCoins(player, amount)
 	roundCoins[player] = (roundCoins[player] or 0) + amount
-	fxEvent:FireClient(player, "coins", amount, Config.RewardNames[kind] or "")
+	fxEvent:FireClient(player, "coins", amount, Locale.forPlayer(player, "reward_" .. kind))
 end
 
 local function endRound(who, reason)
@@ -167,7 +172,7 @@ local function addChaos(amount)
 	ReplicatedStorage:SetAttribute("Chaos", chaos)
 	if chaos >= Config.AlarmChaos and not alarmOn then
 		alarmOn = true
-		notifyAll("🚨 ТРЕВОГА! Повар в ЯРОСТИ и стал быстрее!", "banner")
+		notifyAll("banner", "alarm")
 		for _, p in ipairs(Players:GetPlayers()) do
 			if p:GetAttribute("Role") == "Chef" then
 				refreshSpeed(p)
@@ -175,7 +180,7 @@ local function addChaos(amount)
 		end
 	end
 	if chaos >= Config.ChaosToWin then
-		endRound("Rats", "Ресторан в полном хаосе!")
+		endRound("Rats", "reason_chaos")
 	end
 end
 
@@ -189,7 +194,7 @@ local function checkAllCaught()
 			return
 		end
 	end
-	endRound("Chef", "Все крысы сидят в клетке!")
+	endRound("Chef", "reason_caught")
 end
 
 local function refreshHat(player)
@@ -374,6 +379,12 @@ volunteerEvent.OnServerEvent:Connect(function(player, wants)
 	player:SetAttribute("WantsChef", wants == true)
 end)
 
+languageEvent.OnServerEvent:Connect(function(player, lang)
+	if lang == "ru" or lang == "en" then
+		player:SetAttribute("Lang", lang)
+	end
+end)
+
 local function onPlayerAdded(player)
 	if inRound() then
 		player:SetAttribute("Role", "Rat")
@@ -386,7 +397,7 @@ local function onPlayerAdded(player)
 		return
 	end
 	if inRound() then
-		notifyAll(("🐀 %s присоединился к крысам!"):format(player.DisplayName), "info")
+		notifyAll("info", "join_rats", player.DisplayName)
 	end
 	spawnPlayer(player)
 end
@@ -472,7 +483,7 @@ local function giveResults()
 			end
 			fxEvent:FireClient(p, "results", {
 				winner = winner,
-				reason = winReason,
+				reason = Locale.forPlayer(p, winReason),
 				won = won,
 				mvp = mvpName,
 				mvpScore = bestScore,
@@ -524,11 +535,11 @@ while true do
 			refreshSpeed(p)
 		end
 		if chef and chef.Parent then
-			notifyAll(("👨‍🍳 Повар — %s! Крысы, устройте хаос!"):format(chef.DisplayName), "info")
+			notifyAll("info", "chef_is", chef.DisplayName)
 		else
 			chef = nil
 			ChefAI.start(spawnPoint("ChefSpawn"))
-			notifyAll("🤖 На смену вышел повар-робот! Крысы, устройте хаос!", "info")
+			notifyAll("info", "chef_bot")
 		end
 
 		local timeLeft = Config.RoundTime
@@ -541,14 +552,14 @@ while true do
 			if chef and not chef.Parent then
 				chef = nil
 				ChefAI.start(spawnPoint("ChefSpawn"))
-				notifyAll("Повар сбежал! Его заменил робот 🤖", "info")
+				notifyAll("info", "chef_left")
 			end
 			if #ratsList() == 0 then
-				endRound("Chef", "Крыс не осталось")
+				endRound("Chef", "reason_norats")
 			end
 		end
 		if not winner then
-			winner, winReason = "Chef", "Время вышло — ресторан выстоял!"
+			winner, winReason = "Chef", "reason_time"
 		end
 
 		-- КОНЕЦ РАУНДА

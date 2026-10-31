@@ -1,4 +1,4 @@
-# 🐀 Крысиный Переполох — игра для Roblox (версия 2)
+# 🐀 Крысиный Переполох / Rat Ruckus — игра для Roblox (версия 2)
 
 **Жанр:** командная игра «крысы против повара».
 Ночью в ресторане 2–7 крыс устраивают хаос, а повар (игрок или робот) пытается их переловить.
@@ -27,6 +27,11 @@
 - Шаги повара слышно издалека.
 - Отсчёт «3, 2, 1, ХАОС!», карточка роли, экран результатов, лучший игрок.
 
+**🌍 Два языка: русский и английский**
+- Язык выбирается автоматически по настройкам Roblox игрока.
+- В лобби есть кнопка **🌐 English / Русский**.
+- Все тексты в модуле `Locale`. Чтобы добавить язык, скопируй блок `en` и переведи.
+
 **Прогресс**
 - Сыр-монетки 🧀 за поломки, спасения, поимки и победы. Таблица игроков (Сыр / Победы).
 - **Сохранение** монеток, побед и шапок между играми.
@@ -45,7 +50,7 @@
 
 ---
 
-## ⚡ Установка с нуля (11 скриптов)
+## ⚡ Установка с нуля (12 скриптов)
 
 1. Roblox Studio → **New** → **Baseplate**. Открой **View → Explorer**.
 2. Создай скрипты **с точно такими именами** (наведи на папку → **⊕**):
@@ -53,6 +58,7 @@
 | Где создать | Тип | Имя | Код |
 |---|---|---|---|
 | ReplicatedStorage | **ModuleScript** | `Config` | `src/ReplicatedStorage/Config.lua` |
+| ReplicatedStorage | **ModuleScript** | `Locale` | `src/ReplicatedStorage/Locale.lua` |
 | ServerScriptService | **Script** | `GameManager` | `src/ServerScriptService/GameManager.server.lua` |
 | ServerScriptService | **ModuleScript** | `RatBuilder` | `src/ServerScriptService/RatBuilder.lua` |
 | ServerScriptService | **ModuleScript** | `DataService` | `src/ServerScriptService/DataService.lua` |
@@ -95,7 +101,7 @@
 
 | Тег | На что ставить | Атрибуты |
 |---|---|---|
-| `Sabotage` | Деталь, которую ломают крысы | `TaskName`, `Points`, `MiniGame` (`Wires`/`Mash`/`Code`/`Timing`), `HoldTime`, `Drip`, `Effect` (`Lights`) |
+| `Sabotage` | Деталь, которую ломают крысы | `TaskName` (рус.), `TaskNameEn` (англ.), `Points`, `MiniGame` (`Wires`/`Mash`/`Code`/`Timing`), `HoldTime`, `Drip`, `Effect` (`Lights`) |
 | `Cage` | Пол клетки | — |
 | `RatSpawn` / `ChefSpawn` / `LobbySpawn` | Невидимые точки появления | — |
 | `RatHole` | Норка-телепорт (CanCollide выкл.) | `Pair`: одинаковое у двух норок |

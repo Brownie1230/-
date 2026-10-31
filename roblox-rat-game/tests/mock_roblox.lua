@@ -1020,7 +1020,7 @@ def("BaseScript", "LuaSourceContainer", { Enabled = "boolean" })
 def("Script", "BaseScript", {})
 def("LocalScript", "Script", {})
 def("ModuleScript", "LuaSourceContainer", {})
-def("Player", "Instance", { Character = "Instance", UserId = "number", DisplayName = "string" }, { "CharacterAdded", "CharacterRemoving" })
+def("Player", "Instance", { Character = "Instance", UserId = "number", DisplayName = "string", LocaleId = "string" }, { "CharacterAdded", "CharacterRemoving" })
 def("Backpack", "Instance", {})
 def("PlayerGui", "Instance", {})
 def("DataModel", "Instance", {})
@@ -1951,10 +1951,11 @@ ClassMethods.Players = {
 }
 
 local nextUserId = 1000
-function M.addPlayer(name)
+function M.addPlayer(name, localeId)
 	local p = newInstance("Player")
 	D[p].props.Name = name
 	D[p].props.DisplayName = name
+	D[p].props.LocaleId = localeId or "en-us"
 	nextUserId = nextUserId + 1
 	D[p].props.UserId = nextUserId
 	local bp = newInstance("Backpack")

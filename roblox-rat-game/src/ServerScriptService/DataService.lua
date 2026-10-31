@@ -7,14 +7,16 @@ local Players = game:GetService("Players")
 local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local Locale = require(ReplicatedStorage:WaitForChild("Locale"))
 
 local DataService = {}
 local ctx
 local store = nil
 local cache = {} -- [player] = данные
 
-local COINS_NAME = "Сыр 🧀"
-local WINS_NAME = "Победы 🏆"
+-- таблицу игроков видят все, поэтому названия понятны на любом языке
+local COINS_NAME = "🧀 Cheese"
+local WINS_NAME = "🏆 Wins"
 
 local function defaultData()
 	return { Coins = 0, Wins = 0, Owned = { none = true, cap = true }, Hat = "cap" }
@@ -144,12 +146,12 @@ local function onShop(player, action, hatId)
 
 	if action == "buy" and not data.Owned[hatId] then
 		if data.Coins < hat.Price then
-			ctx.notifyPlayer(player, "Не хватает сыра 🧀 — играй, чтобы заработать!", "bad")
+			ctx.notifyPlayer(player, "bad", "no_cheese")
 			return
 		end
 		data.Coins = data.Coins - hat.Price
 		data.Owned[hatId] = true
-		ctx.notifyPlayer(player, ("Куплено: %s %s"):format(hat.Icon, hat.Name), "good")
+		ctx.notifyPlayer(player, "good", "bought", hat.Icon, Locale.hatName(Locale.detect(player), hat))
 		task.spawn(DataService.save, player)
 	end
 	if (action == "buy" or action == "equip") and data.Owned[hatId] then

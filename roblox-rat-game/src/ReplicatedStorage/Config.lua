@@ -70,29 +70,21 @@ Config.Rewards = {
 	ChefWin = 30,
 	Participation = 5,
 }
-Config.RewardNames = {
-	Sabotage = "Поломка",
-	Rescue = "Спасение",
-	Catch = "Поймал крысу",
-	Repair = "Ремонт",
-	RatWin = "Победа",
-	ChefWin = "Победа",
-	Participation = "За игру",
-}
+-- Названия наград на двух языках — в модуле Locale (reward_...)
 
 -- ===== Шапки (магазин в лобби) =====
 Config.Hats = {
-	{ Id = "none", Name = "Без шапки", Icon = "🚫", Price = 0 },
-	{ Id = "cap", Name = "Кепка", Icon = "🧢", Price = 0 },
-	{ Id = "bow", Name = "Бантик", Icon = "🎀", Price = 40 },
-	{ Id = "party", Name = "Праздничный колпак", Icon = "🥳", Price = 60 },
-	{ Id = "cowboy", Name = "Ковбойская шляпа", Icon = "🤠", Price = 80 },
-	{ Id = "pumpkin", Name = "Тыква", Icon = "🎃", Price = 100 },
-	{ Id = "tophat", Name = "Цилиндр", Icon = "🎩", Price = 120 },
-	{ Id = "chef", Name = "Мини-колпак", Icon = "🍳", Price = 150 },
-	{ Id = "pirate", Name = "Пиратская шляпа", Icon = "🏴‍☠️", Price = 180 },
-	{ Id = "crown", Name = "Корона", Icon = "👑", Price = 250 },
-	{ Id = "halo", Name = "Нимб", Icon = "😇", Price = 300 },
+	{ Id = "none", Name = "Без шапки", NameEn = "No hat", Icon = "🚫", Price = 0 },
+	{ Id = "cap", Name = "Кепка", NameEn = "Cap", Icon = "🧢", Price = 0 },
+	{ Id = "bow", Name = "Бантик", NameEn = "Bow", Icon = "🎀", Price = 40 },
+	{ Id = "party", Name = "Праздничный колпак", NameEn = "Party hat", Icon = "🥳", Price = 60 },
+	{ Id = "cowboy", Name = "Ковбойская шляпа", NameEn = "Cowboy hat", Icon = "🤠", Price = 80 },
+	{ Id = "pumpkin", Name = "Тыква", NameEn = "Pumpkin", Icon = "🎃", Price = 100 },
+	{ Id = "tophat", Name = "Цилиндр", NameEn = "Top hat", Icon = "🎩", Price = 120 },
+	{ Id = "chef", Name = "Мини-колпак", NameEn = "Mini chef hat", Icon = "🍳", Price = 150 },
+	{ Id = "pirate", Name = "Пиратская шляпа", NameEn = "Pirate hat", Icon = "🏴‍☠️", Price = 180 },
+	{ Id = "crown", Name = "Корона", NameEn = "Crown", Icon = "👑", Price = 250 },
+	{ Id = "halo", Name = "Нимб", NameEn = "Halo", Icon = "😇", Price = 300 },
 }
 
 function Config.getHat(id)

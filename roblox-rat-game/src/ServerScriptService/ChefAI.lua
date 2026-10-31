@@ -9,6 +9,7 @@ local PathfindingService = game:GetService("PathfindingService")
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local Locale = require(ReplicatedStorage:WaitForChild("Locale"))
 
 local ChefAI = {}
 local ctx, Sabotage, Chef
@@ -56,7 +57,7 @@ local function buildNPC()
 
 	local hum = model:FindFirstChildOfClass("Humanoid")
 	hum.WalkSpeed = Config.AIChefWalkSpeed
-	hum.DisplayName = "Повар-робот 🤖"
+	hum.DisplayName = "🤖 Chef Bot"
 	hum.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
 	Chef.dressChef(model)
 	getRoot(model):SetNetworkOwner(nil)
@@ -293,7 +294,9 @@ local function brain(myGen)
 						end
 					end
 					if not interrupted then
-						Sabotage.repair(st, "Повар-робот 🤖", nil)
+						Sabotage.repair(st, function(lang)
+							return Locale.t(lang, "bot_name")
+						end, nil)
 						-- иногда оставляет мышеловку рядом с починенным
 						if math.random() < 0.5 and Chef.trapCount() < Config.MaxTraps then
 							Chef.placeTrap(root.Position + root.CFrame.LookVector * 3)

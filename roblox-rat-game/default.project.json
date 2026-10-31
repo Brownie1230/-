@@ -5,6 +5,9 @@
     "ReplicatedStorage": {
       "Config": {
         "$path": "src/ReplicatedStorage/Config.lua"
+      },
+      "Locale": {
+        "$path": "src/ReplicatedStorage/Locale.lua"
       }
     },
     "ServerScriptService": {

@@ -9,6 +9,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local Locale = require(ReplicatedStorage:WaitForChild("Locale"))
 local miniGameEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("MiniGame")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -17,6 +18,10 @@ local FONT = Enum.Font.FredokaOne
 local PANEL = Color3.fromRGB(28, 22, 34)
 local WHITE = Color3.new(1, 1, 1)
 local W, H = 460, 340
+
+local function L(key, ...)
+	return Locale.forPlayer(player, key, ...)
+end
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "MiniGames"
@@ -86,7 +91,7 @@ local function finish(answer)
 	end
 	local game_ = current
 	game_.done = true
-	game_.status.Text = "✔ Готово!"
+	game_.status.Text = L("mg_done")
 	game_.status.TextColor3 = Color3.fromRGB(120, 255, 140)
 	local minTime = Config.MiniGameMinTime[game_.kind] or 1
 	local wait = math.max(0.3, minTime - (os.clock() - game_.started) + 0.1)
@@ -103,7 +108,7 @@ local function flashWrong()
 		return
 	end
 	local st = current.status
-	st.Text = "❌ Не то!"
+	st.Text = L("mg_wrong")
 	st.TextColor3 = Color3.fromRGB(255, 110, 100)
 	task.delay(0.6, function()
 		if current and not current.done and current.status == st then
@@ -233,10 +238,11 @@ local function buildMash(frame)
 	local fill = make("Frame", barBg, { Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.fromRGB(255, 170, 60), BorderSizePixel = 0 })
 	corner(fill, 10)
 	local gnaw = btn(frame, {
+		Name = "GnawButton",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 130),
 		Size = UDim2.fromOffset(220, 130),
-		Text = "🦷 ГРЫЗТЬ!",
+		Text = L("mg_gnaw"),
 		TextColor3 = Color3.fromRGB(50, 30, 10),
 	}, Color3.fromRGB(255, 220, 120))
 	local scale = make("UIScale", gnaw, {})
@@ -272,8 +278,8 @@ local function buildCode(frame, code)
 		BorderSizePixel = 0,
 		Rotation = -6,
 	})
-	label(note, { Position = UDim2.fromOffset(8, 6), Size = UDim2.new(1, -16, 0, 30), Text = "Пароль:", TextColor3 = Color3.fromRGB(60, 40, 20) })
-	label(note, { Position = UDim2.fromOffset(8, 44), Size = UDim2.new(1, -16, 0, 56), Text = code or "????", TextColor3 = Color3.fromRGB(60, 40, 20) })
+	label(note, { Position = UDim2.fromOffset(8, 6), Size = UDim2.new(1, -16, 0, 30), Text = L("mg_password"), TextColor3 = Color3.fromRGB(60, 40, 20) })
+	label(note, { Name = "CodeText", Position = UDim2.fromOffset(8, 44), Size = UDim2.new(1, -16, 0, 56), Text = code or "????", TextColor3 = Color3.fromRGB(60, 40, 20) })
 	local display = label(frame, {
 		Position = UDim2.fromOffset(190, 56),
 		Size = UDim2.fromOffset(250, 44),
@@ -352,10 +358,11 @@ local function buildTiming(frame)
 	})
 	local counter = label(frame, { Position = UDim2.fromOffset(30, 150), Size = UDim2.new(1, -60, 0, 36), Text = "" })
 	local stop = btn(frame, {
+		Name = "StopButton",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 200),
 		Size = UDim2.fromOffset(200, 70),
-		Text = "⏱ СТОП!",
+		Text = L("mg_stop"),
 		TextColor3 = Color3.fromRGB(50, 30, 10),
 	}, Color3.fromRGB(255, 220, 120))
 
@@ -413,18 +420,19 @@ end
 
 -- ===== Открыть мини-игру =====
 local TITLES = {
-	Wires = { "🔌 Перегрызи провода!", "Соедини провода одного цвета" },
-	Mash = { "🦷 Грызи быстрее!", "Жми кнопку, E или Пробел" },
-	Code = { "🔢 Взломай пароль!", "Набери пароль со стикера" },
-	Timing = { "⏱ Жми вовремя!", "Останови полоску на зелёном (E / Пробел)" },
+	Wires = { "mg_wires", "mg_wires_hint" },
+	Mash = { "mg_mash", "mg_mash_hint" },
+	Code = { "mg_code", "mg_code_hint" },
+	Timing = { "mg_timing", "mg_timing_hint" },
 }
 
 local function open(station, kind, data)
 	close(true)
-	local info = TITLES[kind]
-	if not info then
+	local keys = TITLES[kind]
+	if not keys then
 		return
 	end
+	local info = { L(keys[1]), L(keys[2]) }
 	local frame, status = newFrame(info[1], info[2])
 	current = {
 		station = station,

@@ -92,7 +92,8 @@ local function marker(tag, pos)
 	return p
 end
 
-local function label(text, pos, width, maxDistance)
+-- textEn — тот же текст по-английски (игра покажет нужный язык каждому игроку)
+local function label(text, pos, width, maxDistance, textEn)
 	local p = ghost(block("Label", Vector3.new(1, 1, 1), pos, C.white))
 	local bb = Instance.new("BillboardGui")
 	bb.Size = UDim2.fromOffset(width or 220, 50)
@@ -107,12 +108,17 @@ local function label(text, pos, width, maxDistance)
 	t.Font = Enum.Font.FredokaOne
 	t.TextColor3 = Color3.fromRGB(255, 230, 180)
 	t.TextStrokeTransparency = 0.4
+	if textEn then
+		t:SetAttribute("ru", text)
+		t:SetAttribute("en", textEn)
+		t:AddTag("Localized")
+	end
 	t.Parent = bb
 	return p
 end
 
 -- Плоская табличка/картина. intoRoom — куда смотрит лицевая сторона.
-local function sign(pos, intoRoom, w, h, text, bg, textColor)
+local function sign(pos, intoRoom, w, h, text, bg, textColor, textEn)
 	local cf = CFrame.lookAt(pos, pos + intoRoom)
 	decor(block("Frame", Vector3.new(w, h, 0.2), cf, C.darkWood, Enum.Material.Wood))
 	local canvas = decor(block("Canvas", Vector3.new(w - 0.4, h - 0.4, 0.22), cf * CFrame.new(0, 0, -0.02), bg))
@@ -129,6 +135,11 @@ local function sign(pos, intoRoom, w, h, text, bg, textColor)
 	t.TextScaled = true
 	t.Font = Enum.Font.FredokaOne
 	t.TextColor3 = textColor or Color3.new(1, 1, 1)
+	if textEn then
+		t:SetAttribute("ru", text)
+		t:SetAttribute("en", textEn)
+		t:AddTag("Localized")
+	end
 	t.Parent = gui
 	return canvas
 end
@@ -394,7 +405,7 @@ local function cage(x, z)
 		end
 	end
 	block("CageRoof", Vector3.new(size + 0.5, 0.3, size + 0.5), Vector3.new(x, hgt + 0.75, z), C.steel, Enum.Material.DiamondPlate)
-	label("🪤 Клетка", Vector3.new(x, hgt + 2.5, z))
+	label("🪤 Клетка", Vector3.new(x, hgt + 2.5, z), nil, nil, "🪤 Cage")
 end
 
 local function toilet(x, z)
@@ -469,7 +480,7 @@ function TestMapBuilder.build()
 	window(Vector3.new(-60, 7.5, -35), Vector3.new(1, 0, 0))
 
 	-- ---------- КУХНЯ ----------
-	label("Кухня", Vector3.new(-10, 10, -15))
+	label("Кухня", Vector3.new(-10, 10, -15), nil, nil, "Kitchen")
 	block("Counter", Vector3.new(22, 3.5, 4), Vector3.new(-7, 1.75, -42.5), C.steel, Enum.Material.Metal)
 	block("SinkBasin", Vector3.new(3, 0.2, 2.4), Vector3.new(0, 3.55, -42.5), Color3.fromRGB(90, 95, 100), Enum.Material.Metal)
 	decor(block("Faucet", Vector3.new(0.2, 1, 0.2), Vector3.new(0, 4.1, -43.8), C.steel, Enum.Material.Metal))
@@ -479,6 +490,7 @@ function TestMapBuilder.build()
 	end
 	local stove = station("Stove", Vector3.new(6, 3.6, 4.2), Vector3.new(-22, 1.8, -42.4), C.black, {
 		TaskName = "Поджечь плиту",
+		TaskNameEn = "Light up the stove",
 		Points = 10,
 		MiniGame = "Timing",
 	}, Enum.Material.Metal)
@@ -499,6 +511,7 @@ function TestMapBuilder.build()
 
 	local fridge = station("Fridge", Vector3.new(4, 9, 4), Vector3.new(7, 4.5, -42.5), C.white, {
 		TaskName = "Испортить еду в холодильнике",
+		TaskNameEn = "Spoil the food in the fridge",
 		Points = 10,
 		HoldTime = 4,
 	})
@@ -512,6 +525,7 @@ function TestMapBuilder.build()
 
 	local flour = station("FlourSack", Vector3.new(2.5, 3, 2), Vector3.new(-26, 1.5, 11), Color3.fromRGB(235, 225, 200), {
 		TaskName = "Прогрызть мешок муки",
+		TaskNameEn = "Chew through the flour sack",
 		Points = 10,
 		MiniGame = "Mash",
 	}, Enum.Material.Fabric)
@@ -520,6 +534,7 @@ function TestMapBuilder.build()
 
 	local trash = station("Trash", Vector3.new(2.5, 2, 2), CFrame.new(4, 1.25, 11) * VERT, Color3.fromRGB(110, 115, 120), {
 		TaskName = "Перевернуть мусорку",
+		TaskNameEn = "Knock over the trash can",
 		Points = 8,
 		HoldTime = 2,
 	}, Enum.Material.Metal)
@@ -532,11 +547,12 @@ function TestMapBuilder.build()
 	cheese(-20, -8)
 
 	-- ---------- КАБИНЕТ ----------
-	label("Кабинет", Vector3.new(-45, 10, -25))
+	label("Кабинет", Vector3.new(-45, 10, -25), nil, nil, "Office")
 	decor(block("Rug", Vector3.new(12, 0.05, 9), Vector3.new(-45, 0.23, -28), Color3.fromRGB(60, 80, 140), Enum.Material.Fabric))
 	tableWithLegs(-45, -41.5, 10, 4, 3)
 	local pc = station("Computer", Vector3.new(2.6, 2.2, 2), Vector3.new(-45, 4.1, -42.5), Color3.fromRGB(230, 220, 190), {
 		TaskName = "Взломать компьютер",
+		TaskNameEn = "Hack the computer",
 		Points = 12,
 		MiniGame = "Code",
 	})
@@ -557,7 +573,7 @@ function TestMapBuilder.build()
 	cheese(-55, -15)
 
 	-- ---------- СКЛАД ----------
-	label("Склад", Vector3.new(-45, 10, 20))
+	label("Склад", Vector3.new(-45, 10, 20), nil, nil, "Storage")
 	shelf(-45, 43, 14, 3, 8, 3)
 	shelf(-57.5, 30, 3, 12, 8, 3)
 	for i = 0, 3 do
@@ -580,6 +596,7 @@ function TestMapBuilder.build()
 	cage(-38, 35)
 	local fuse = station("FuseBox", Vector3.new(1, 3, 2.5), Vector3.new(-59, 4.5, 15), Color3.fromRGB(90, 95, 100), {
 		TaskName = "Перегрызть провода в щитке",
+		TaskNameEn = "Chew the fuse box wires",
 		Points = 12,
 		MiniGame = "Wires",
 		Effect = "Lights",
@@ -596,7 +613,7 @@ function TestMapBuilder.build()
 		local a = i * math.pi / 3
 		decor(block("Straw", Vector3.new(2.5, 0.15, 0.3), CFrame.new(-52 + math.cos(a) * 2.5, 0.8, 2 + math.sin(a) * 2.5) * CFrame.Angles(0, a, 0.2), Color3.fromRGB(220, 190, 100)))
 	end
-	label("🐀 Гнездо", Vector3.new(-52, 5, 2))
+	label("🐀 Гнездо", Vector3.new(-52, 5, 2), nil, nil, "🐀 Nest")
 	marker("RatSpawn", Vector3.new(-52, 1, 0))
 	marker("RatSpawn", Vector3.new(-50, 1, 3))
 	marker("RatSpawn", Vector3.new(-54, 1, 3))
@@ -605,11 +622,12 @@ function TestMapBuilder.build()
 	cheese(-50, 30)
 
 	-- ---------- БАР ----------
-	label("Бар", Vector3.new(-5, 10, 30))
+	label("Бар", Vector3.new(-5, 10, 30), nil, nil, "Bar")
 	block("BarCounter", Vector3.new(20, 4, 3), Vector3.new(-5, 2, 40), C.darkWood, Enum.Material.Wood)
 	decor(block("BarTop", Vector3.new(20.4, 0.2, 3.4), Vector3.new(-5, 4.1, 40), Color3.fromRGB(60, 35, 25), Enum.Material.Marble))
 	local coffee = station("CoffeeMachine", Vector3.new(2, 2.5, 2), Vector3.new(2, 5.45, 40), C.steel, {
 		TaskName = "Сломать кофемашину",
+		TaskNameEn = "Break the coffee machine",
 		Points = 10,
 		MiniGame = "Wires",
 	}, Enum.Material.Metal)
@@ -625,7 +643,7 @@ function TestMapBuilder.build()
 			decor(block("Bottle", Vector3.new(0.45, 1.2, 0.45), Vector3.new(-13 + i * 1.4, 6.75 + row * 2, 44), Color3.fromHSV((i * 0.13 + row * 0.4) % 1, 0.6, 0.8), Enum.Material.Glass))
 		end
 	end
-	sign(Vector3.new(-8, 11, 44.35), Vector3.new(0, 0, -1), 8, 2.4, "🍹 БАР 🍹", Color3.fromRGB(40, 20, 50), Color3.fromRGB(255, 120, 220))
+	sign(Vector3.new(-8, 11, 44.35), Vector3.new(0, 0, -1), 8, 2.4, "🍹 БАР 🍹", Color3.fromRGB(40, 20, 50), Color3.fromRGB(255, 120, 220), "🍹 BAR 🍹")
 	for _, x in ipairs({ -12, -7, -2 }) do
 		block("Stool", Vector3.new(1.5, 2.6, 1.5), Vector3.new(x, 1.3, 36.5), C.wood, Enum.Material.Wood)
 	end
@@ -634,11 +652,12 @@ function TestMapBuilder.build()
 	cheese(8, 22)
 
 	-- ---------- ТУАЛЕТ ----------
-	label("Туалет", Vector3.new(40, 10, 30))
+	label("Туалет", Vector3.new(40, 10, 30), nil, nil, "Restroom")
 	block("Stall", Vector3.new(0.4, 7, 6), Vector3.new(35, 3.5, 42), C.white)
 	local wc = toilet(28, 42.6)
 	wc.Name = "ToiletStation"
 	wc:SetAttribute("TaskName", "Засорить унитаз")
+	wc:SetAttribute("TaskNameEn", "Clog the toilet")
 	wc:SetAttribute("Points", 10)
 	wc:SetAttribute("MiniGame", "Timing")
 	wc:AddTag("Sabotage")
@@ -646,6 +665,7 @@ function TestMapBuilder.build()
 	toilet(42, 42.6)
 	local sinks = station("Sinks", Vector3.new(6, 3, 2), Vector3.new(50, 1.5, 16.5), C.white, {
 		TaskName = "Открыть все краны",
+		TaskNameEn = "Turn on all the taps",
 		Points = 8,
 		MiniGame = "Mash",
 	})
@@ -656,7 +676,7 @@ function TestMapBuilder.build()
 	cheese(45, 30)
 
 	-- ---------- ЗАЛ ----------
-	label("Зал", Vector3.new(35, 10, -15))
+	label("Зал", Vector3.new(35, 10, -15), nil, nil, "Dining room")
 	for _, cx in ipairs({ 22, 36, 50 }) do
 		for _, cz in ipairs({ -35, -20, -5 }) do
 			tableWithLegs(cx, cz, 6, 4, 3.2, C.wood)
@@ -672,6 +692,7 @@ function TestMapBuilder.build()
 	end
 	local cake = station("Cake", Vector3.new(2, 1.4, 2), Vector3.new(36, 3.96, -20), Color3.fromRGB(255, 170, 200), {
 		TaskName = "Уронить праздничный торт",
+		TaskNameEn = "Drop the birthday cake",
 		Points = 10,
 		MiniGame = "Mash",
 	})
@@ -740,8 +761,8 @@ function TestMapBuilder.build()
 		block("BenchLeg", Vector3.new(0.4, 1.5, 1.8), Vector3.new(x - 2.5, 1, 105), C.darkWood)
 		block("BenchLeg", Vector3.new(0.4, 1.5, 1.8), Vector3.new(x + 2.5, 1, 105), C.darkWood)
 	end
-	label("🐀 КРЫСИНЫЙ ПЕРЕПОЛОХ 👨‍🍳", Vector3.new(0, 12, 100), 520, 120)
-	label("🎩 Шапки — кнопка внизу экрана", Vector3.new(0, 8.5, 100), 320, 80)
+	label("🐀 КРЫСИНЫЙ ПЕРЕПОЛОХ 👨‍🍳", Vector3.new(0, 12, 100), 520, 120, "🐀 RAT RUCKUS 👨‍🍳")
+	label("🎩 Шапки — кнопка внизу экрана", Vector3.new(0, 8.5, 100), 320, 80, "🎩 Hats — button at the bottom")
 	for _, x in ipairs({ -6, 0, 6 }) do
 		marker("LobbySpawn", Vector3.new(x, 2, 112))
 	end

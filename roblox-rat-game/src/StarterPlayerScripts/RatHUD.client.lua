@@ -11,14 +11,24 @@ local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local Locale = require(ReplicatedStorage:WaitForChild("Locale"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local notifyEvent = remotes:WaitForChild("Notify")
 local volunteerEvent = remotes:WaitForChild("ChefVolunteer")
 local fxEvent = remotes:WaitForChild("FX")
 local shopEvent = remotes:WaitForChild("ShopAction")
 local squeakEvent = remotes:WaitForChild("Squeak")
+local languageEvent = remotes:WaitForChild("SetLanguage")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+
+-- язык игрока ("ru" или "en") и перевод
+local function lang()
+	return Locale.detect(player)
+end
+local function L(key, ...)
+	return Locale.t(lang(), key, ...)
+end
 
 -- Пойманная крыса не должна сбегать через "Reset"
 task.spawn(function()
@@ -274,11 +284,11 @@ local function makeBar(y, color, title)
 	corner(bg, 8)
 	local fill = make("Frame", bg, { Size = UDim2.fromScale(1, 1), BackgroundColor3 = color, BorderSizePixel = 0 })
 	corner(fill, 8)
-	text(bg, { Size = UDim2.fromScale(1, 1), TextStrokeTransparency = 0.5, ZIndex = 2, Text = title })
-	return bg, fill
+	local caption = text(bg, { Size = UDim2.fromScale(1, 1), TextStrokeTransparency = 0.5, ZIndex = 2, Text = title })
+	return bg, fill, caption
 end
-local hungerBg, hungerFill = makeBar(46, Color3.fromRGB(240, 120, 80), "🧀 Сытость")
-local staminaBg, staminaFill = makeBar(74, Color3.fromRGB(100, 160, 255), "🏃 Бег")
+local hungerBg, hungerFill, hungerCaption = makeBar(46, Color3.fromRGB(240, 120, 80), "")
+local staminaBg, staminaFill, staminaCaption = makeBar(74, Color3.fromRGB(100, 160, 255), "")
 local hintLabel = text(rolePanel, {
 	Position = UDim2.fromOffset(14, 102),
 	Size = UDim2.new(1, -28, 0, 30),
@@ -311,7 +321,7 @@ local tasksLabel = text(tasksPanel, {
 local lobbyBar = make("Frame", gui, {
 	AnchorPoint = Vector2.new(0.5, 1),
 	Position = UDim2.new(0.5, 0, 1, -18),
-	Size = UDim2.fromOffset(560, 54),
+	Size = UDim2.fromOffset(760, 54),
 	BackgroundTransparency = 1,
 })
 make("UIListLayout", lobbyBar, {
@@ -319,18 +329,27 @@ make("UIListLayout", lobbyBar, {
 	HorizontalAlignment = Enum.HorizontalAlignment.Center,
 	Padding = UDim.new(0, 14),
 })
-local shopButton = button(lobbyBar, { Size = UDim2.fromOffset(200, 54), Text = "🎩 Шапки" }, Color3.fromRGB(180, 130, 255))
-local chefButton = button(lobbyBar, { Size = UDim2.fromOffset(320, 54), Text = "" })
+local shopButton = button(lobbyBar, { Size = UDim2.fromOffset(180, 54), Text = "" }, Color3.fromRGB(180, 130, 255))
+local chefButton = button(lobbyBar, { Size = UDim2.fromOffset(360, 54), Text = "" })
+local langButton = button(lobbyBar, { Size = UDim2.fromOffset(170, 54), Text = "" }, Color3.fromRGB(110, 190, 255))
 local wantsChef = false
 local function refreshChefButton()
 	if wantsChef then
-		chefButton.Text = "👨‍🍳 Хочу быть поваром: ДА"
+		chefButton.Text = L("chef_yes")
 		chefButton.BackgroundColor3 = GREEN
 	else
-		chefButton.Text = "👨‍🍳 Хочу быть поваром: НЕТ"
+		chefButton.Text = L("chef_no")
 		chefButton.BackgroundColor3 = Color3.fromRGB(255, 170, 60)
 	end
 end
+langButton.Activated:Connect(function()
+	local newLang = "ru"
+	if lang() == "ru" then
+		newLang = "en"
+	end
+	player:SetAttribute("Lang", newLang) -- сразу у себя
+	languageEvent:FireServer(newLang) -- и на сервере (сообщения)
+end)
 refreshChefButton()
 chefButton.Activated:Connect(function()
 	wantsChef = not wantsChef
@@ -346,7 +365,7 @@ local shop = panel(gui, {
 	Visible = false,
 	ZIndex = 10,
 })
-text(shop, { Position = UDim2.fromOffset(16, 10), Size = UDim2.new(1, -120, 0, 40), Text = "🎩 Шапки для крысы", TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 10 })
+local shopTitle = text(shop, { Position = UDim2.fromOffset(16, 10), Size = UDim2.new(1, -200, 0, 40), Text = "", TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 10 })
 local shopCoins = text(shop, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -64, 0, 14), Size = UDim2.fromOffset(120, 32), TextColor3 = YELLOW, ZIndex = 10, Text = "" })
 local closeShop = button(shop, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10), Size = UDim2.fromOffset(42, 42), Text = "✕", ZIndex = 10 }, RED)
 local shopList = make("ScrollingFrame", shop, {
@@ -374,9 +393,9 @@ for i, hat in ipairs(Config.Hats) do
 	})
 	corner(card, 10)
 	text(card, { Position = UDim2.fromOffset(0, 6), Size = UDim2.new(1, 0, 0, 44), Text = hat.Icon, ZIndex = 10 })
-	text(card, { Position = UDim2.fromOffset(6, 52), Size = UDim2.new(1, -12, 0, 24), Text = hat.Name, ZIndex = 10 })
+	local nameLabel = text(card, { Position = UDim2.fromOffset(6, 52), Size = UDim2.new(1, -12, 0, 24), Text = hat.Name, ZIndex = 10 })
 	local buy = button(card, { Position = UDim2.new(0, 10, 1, -44), Size = UDim2.new(1, -20, 0, 36), Text = "", ZIndex = 10 })
-	shopCards[hat.Id] = { button = buy, hat = hat }
+	shopCards[hat.Id] = { button = buy, hat = hat, nameLabel = nameLabel }
 end
 
 local function ownedSet()
@@ -394,17 +413,18 @@ local function refreshShop()
 	shopCoins.Text = "🧀 " .. coins
 	for id, info in pairs(shopCards) do
 		local b = info.button
+		info.nameLabel.Text = Locale.hatName(lang(), info.hat)
 		if current == id then
-			b.Text = "Надето ✓"
+			b.Text = L("equipped")
 			b.BackgroundColor3 = Color3.fromRGB(120, 120, 130)
 		elseif owned[id] then
-			b.Text = "Надеть"
+			b.Text = L("equip")
 			b.BackgroundColor3 = GREEN
 		elseif coins >= info.hat.Price then
-			b.Text = "Купить 🧀" .. info.hat.Price
+			b.Text = L("buy", info.hat.Price)
 			b.BackgroundColor3 = YELLOW
 		else
-			b.Text = "🔒 🧀" .. info.hat.Price
+			b.Text = L("locked", info.hat.Price)
 			b.BackgroundColor3 = Color3.fromRGB(90, 80, 95)
 		end
 	end
@@ -571,24 +591,24 @@ local function showResults(data)
 	results.Visible = true
 	popIn(results)
 	if data.won then
-		resTitle.Text = "🎉 ПОБЕДА! 🎉"
+		resTitle.Text = L("victory")
 		resTitle.TextColor3 = GREEN
 	else
-		resTitle.Text = "😿 Поражение"
+		resTitle.Text = L("defeat")
 		resTitle.TextColor3 = RED
 	end
 	if data.winner == "Rats" then
-		resWinner.Text = "🐀 Крысы победили!"
+		resWinner.Text = L("rats_won")
 	else
-		resWinner.Text = "👨‍🍳 Повар победил!"
+		resWinner.Text = L("chef_won")
 	end
 	resReason.Text = data.reason or ""
 	if data.mvp and data.mvp ~= "" then
-		resMvp.Text = ("⭐ Лучший игрок: %s (%d)"):format(data.mvp, data.mvpScore or 0)
+		resMvp.Text = L("mvp", data.mvp, data.mvpScore or 0)
 	else
 		resMvp.Text = ""
 	end
-	resCoins.Text = ("+%d 🧀 за раунд"):format(data.coins or 0)
+	resCoins.Text = L("round_coins", data.coins or 0)
 end
 
 fxEvent.OnClientEvent:Connect(function(kind, a, b)
@@ -616,17 +636,23 @@ local MINI_ICONS = { Wires = "🔌", Mash = "🦷", Code = "🔢", Timing = "⏱
 
 local function refreshPrompts()
 	local r = role()
+	local lg = lang()
 	local caught = player:GetAttribute("Caught") == true
 	local busy = player:GetAttribute("LocalFreeze") == true
 	for _, st in ipairs(CollectionService:GetTagged("Sabotage")) do
 		local broken = st:GetAttribute("Broken") == true
 		local sab = st:FindFirstChild("SabotagePrompt")
 		local rep = st:FindFirstChild("RepairPrompt")
+		local name = Locale.taskName(lg, st)
 		if sab then
 			sab.Enabled = r == "Rat" and not caught and not broken and not busy
+			sab.ActionText = L("prompt_sabotage")
+			sab.ObjectText = name
 		end
 		if rep then
 			rep.Enabled = r == "Chef" and broken
+			rep.ActionText = L("prompt_repair")
+			rep.ObjectText = name
 		end
 		-- подсветка: крысам — что можно сломать, повару — что надо чинить
 		local hl = st:FindFirstChild("TaskHighlight")
@@ -648,17 +674,27 @@ local function refreshPrompts()
 		local fp = cage:FindFirstChild("FreePrompt")
 		if fp then
 			fp.Enabled = r == "Rat" and not caught
+			fp.ActionText = L("prompt_free")
+			fp.ObjectText = L("cage")
+		end
+	end
+	-- таблички на карте
+	for _, label in ipairs(CollectionService:GetTagged("Localized")) do
+		local t = label:GetAttribute(lg)
+		if t and label:IsA("TextLabel") then
+			label.Text = t
 		end
 	end
 end
 
 local function refreshTasks()
 	local r = role()
+	local lg = lang()
 	local lines = {}
 	if r == "Rat" then
-		table.insert(lines, "<b>🐀 Напакости:</b>")
+		table.insert(lines, "<b>" .. L("tasks_rat") .. "</b>")
 		for _, st in ipairs(sortedStations()) do
-			local name = st:GetAttribute("TaskName") or st.Name
+			local name = Locale.taskName(lg, st)
 			local icon = MINI_ICONS[st:GetAttribute("MiniGame") or ""] or "✋"
 			if st:GetAttribute("Broken") then
 				table.insert(lines, '<font color="#7CFC8A">✔ <s>' .. name .. "</s></font>")
@@ -667,19 +703,19 @@ local function refreshTasks()
 			end
 		end
 	elseif r == "Chef" then
-		table.insert(lines, "<b>🔧 Почини:</b>")
+		table.insert(lines, "<b>" .. L("tasks_chef") .. "</b>")
 		local any = false
 		for _, st in ipairs(sortedStations()) do
 			if st:GetAttribute("Broken") then
 				any = true
-				table.insert(lines, '<font color="#FF8A80">• ' .. (st:GetAttribute("TaskName") or st.Name) .. "</font>")
+				table.insert(lines, '<font color="#FF8A80">• ' .. Locale.taskName(lg, st) .. "</font>")
 			end
 		end
 		if not any then
-			table.insert(lines, "Пока всё цело... 👀")
+			table.insert(lines, L("all_ok"))
 		end
 	end
-	table.insert(lines, '<font size="13" color="#AAAAAA">Tab — скрыть</font>')
+	table.insert(lines, '<font size="13" color="#AAAAAA">' .. L("tab_hide") .. "</font>")
 	tasksLabel.Text = table.concat(lines, "\n")
 end
 
@@ -690,13 +726,13 @@ end
 local function showRoleCard()
 	local r = role()
 	if r == "Rat" then
-		roleCardTitle.Text = "🐀 ТЫ — КРЫСА"
+		roleCardTitle.Text = L("you_rat")
 		roleCardTitle.TextColor3 = YELLOW
-		roleCardGoal.Text = "Ломай вещи (жёлтая обводка), наполни шкалу хаоса до 100% и не попадись повару!"
+		roleCardGoal.Text = L("goal_rat")
 	elseif r == "Chef" then
-		roleCardTitle.Text = "👨‍🍳 ТЫ — ПОВАР"
+		roleCardTitle.Text = L("you_chef")
 		roleCardTitle.TextColor3 = Color3.fromRGB(255, 140, 120)
-		roleCardGoal.Text = "Лови крыс сачком, ставь мышеловки и чини поломки, пока не кончится время!"
+		roleCardGoal.Text = L("goal_chef")
 	else
 		roleCard.Visible = false
 		return
@@ -756,7 +792,7 @@ RunService.Heartbeat:Connect(function(dt)
 			shop.Visible = false
 			showRoleCard()
 		elseif state == "Playing" then
-			countdown.Text = "ХАОС!"
+			countdown.Text = L("chaos_go")
 			countdown.Visible = true
 			popIn(countdown)
 			task.delay(1.2, function()
@@ -782,12 +818,12 @@ RunService.Heartbeat:Connect(function(dt)
 	-- таймер и хаос
 	if state == "Lobby" then
 		if t > 0 then
-			statusLabel.Text = "Старт через " .. t
+			statusLabel.Text = L("start_in", t)
 		else
-			statusLabel.Text = "Ждём игроков..."
+			statusLabel.Text = L("waiting")
 		end
 	elseif state == "Intro" then
-		statusLabel.Text = "Приготовься!"
+		statusLabel.Text = L("get_ready")
 	elseif state == "Playing" then
 		statusLabel.Text = "⏱ " .. fmtTime(t)
 		if t <= 30 then
@@ -796,19 +832,19 @@ RunService.Heartbeat:Connect(function(dt)
 			statusLabel.TextColor3 = WHITE
 		end
 	else
-		statusLabel.Text = "Раунд окончен"
-		resNext.Text = ("Следующий раунд через %d сек."):format(t)
+		statusLabel.Text = L("round_over")
+		resNext.Text = L("next_round", t)
 	end
 	local chaos = ReplicatedStorage:GetAttribute("Chaos") or 0
 	local frac = math.clamp(chaos / Config.ChaosToWin, 0, 1)
 	chaosFill.Size = UDim2.fromScale(frac, 1)
 	if chaos >= Config.AlarmChaos and state == "Playing" then
-		chaosText.Text = ("🚨 ТРЕВОГА! Хаос: %d%%"):format(math.floor(frac * 100))
+		chaosText.Text = L("alarm_bar", math.floor(frac * 100))
 		local pulse = (math.sin(os.clock() * 8) + 1) / 2
 		topStroke.Color = Color3.fromRGB(255, 60 + 100 * pulse, 60)
 		topStroke.Transparency = 0.1
 	else
-		chaosText.Text = ("Хаос: %d%%"):format(math.floor(frac * 100))
+		chaosText.Text = L("chaos_bar", math.floor(frac * 100))
 		topStroke.Color = Color3.fromRGB(255, 200, 120)
 		topStroke.Transparency = 0.4
 	end
@@ -822,22 +858,29 @@ RunService.Heartbeat:Connect(function(dt)
 	-- роль
 	if r == "Rat" then
 		if caught then
-			roleLabel.Text = "🪤 Ты в клетке!"
-			hintLabel.Text = "Пищи (Q), чтобы позвать друзей!"
+			roleLabel.Text = L("role_caught")
+			hintLabel.Text = L("hint_caught")
 		elseif player:GetAttribute("Stunned") then
-			roleLabel.Text = "🪤 Мышеловка!"
-			hintLabel.Text = "Подожди пару секунд..."
+			roleLabel.Text = L("role_stunned")
+			hintLabel.Text = L("hint_stunned")
 		else
-			roleLabel.Text = "🐀 Ты — крыса"
-			hintLabel.Text = "E — пакостить • Shift — бег • Q — писк"
+			roleLabel.Text = L("role_rat")
+			hintLabel.Text = L("hint_rat")
 		end
 	elseif r == "Chef" then
-		roleLabel.Text = "👨‍🍳 Ты — повар"
-		hintLabel.Text = "1 — сачок • 2 — мышеловка • E — чинить"
+		roleLabel.Text = L("role_chef")
+		hintLabel.Text = L("hint_chef")
 	else
-		roleLabel.Text = "🏠 Лобби"
-		hintLabel.Text = "Выбери шапку и жди начала раунда!"
+		roleLabel.Text = L("role_lobby")
+		hintLabel.Text = L("hint_lobby")
 	end
+	-- надписи, которые зависят только от языка
+	hungerCaption.Text = L("hunger")
+	staminaCaption.Text = L("stamina")
+	shopButton.Text = L("shop_button")
+	shopTitle.Text = L("shop_title")
+	langButton.Text = L("lang_button")
+	refreshChefButton()
 	hungerBg.Visible = r == "Rat"
 	staminaBg.Visible = r == "Rat" or r == "Chef"
 	hungerFill.Size = UDim2.fromScale((player:GetAttribute("Hunger") or Config.HungerMax) / Config.HungerMax, 1)

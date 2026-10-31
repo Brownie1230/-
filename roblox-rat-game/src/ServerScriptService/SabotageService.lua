@@ -14,14 +14,18 @@
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local Locale = require(ReplicatedStorage:WaitForChild("Locale"))
 
 local SabotageService = {}
 local ctx
 local miniGameEvent
 local active = {} -- [игрок] = { station, started, code }
 
+-- имя задания на языке каждого игрока
 local function taskName(station)
-	return station:GetAttribute("TaskName") or station.Name
+	return function(lang)
+		return Locale.taskName(lang, station)
+	end
 end
 
 local function isFreeRat(player)
@@ -103,7 +107,7 @@ function SabotageService.sabotage(station, player)
 	player:SetAttribute("Score", (player:GetAttribute("Score") or 0) + 1)
 	ctx.reward(player, "Sabotage")
 	ctx.fxAll("sabotage", station.Position)
-	ctx.notifyAll(("💥 %s: «%s» — готово!"):format(player.DisplayName, taskName(station)), "good")
+	ctx.notifyAll("good", "sabotaged", player.DisplayName, taskName(station))
 	ctx.alertNoise(station.Position)
 	ctx.addChaos(station:GetAttribute("Points") or Config.DefaultTaskPoints)
 end
@@ -118,7 +122,7 @@ function SabotageService.repair(station, whoName, chefPlayer)
 		ctx.reward(chefPlayer, "Repair")
 	end
 	ctx.fxAll("repair", station.Position)
-	ctx.notifyAll(("🔧 %s починил: «%s»"):format(whoName or "Повар", taskName(station)), "bad")
+	ctx.notifyAll("bad", "repaired", whoName or "?", taskName(station))
 end
 
 -- ===== Мини-игры =====
@@ -132,7 +136,7 @@ local function startMiniGame(station, player)
 	end
 	for other, info in pairs(active) do
 		if other ~= player and info.station == station then
-			ctx.notifyPlayer(player, "Тут уже работает другая крыса!", "info")
+			ctx.notifyPlayer(player, "info", "busy")
 			return
 		end
 	end
@@ -228,8 +232,9 @@ local function setupStation(station)
 
 	local sab = Instance.new("ProximityPrompt")
 	sab.Name = "SabotagePrompt"
-	sab.ActionText = "Напакостить"
-	sab.ObjectText = taskName(station)
+	-- тексты на языке игрока подставляет RatHUD
+	sab.ActionText = "Sabotage"
+	sab.ObjectText = Locale.taskName("en", station)
 	sab.MaxActivationDistance = 7
 	sab.RequiresLineOfSight = false
 	if kind then
@@ -247,8 +252,8 @@ local function setupStation(station)
 
 	local rep = Instance.new("ProximityPrompt")
 	rep.Name = "RepairPrompt"
-	rep.ActionText = "Починить"
-	rep.ObjectText = taskName(station)
+	rep.ActionText = "Repair"
+	rep.ObjectText = Locale.taskName("en", station)
 	rep.HoldDuration = Config.RepairTime
 	rep.MaxActivationDistance = 9
 	rep.RequiresLineOfSight = false

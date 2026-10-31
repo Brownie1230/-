@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local Locale = require(ReplicatedStorage:WaitForChild("Locale"))
 
 local ChefService = {}
 local ctx
@@ -79,7 +80,7 @@ function ChefService.catchRat(rat, catcher)
 		catcher:SetAttribute("Score", (catcher:GetAttribute("Score") or 0) + 1)
 		ctx.reward(catcher, "Catch")
 	end
-	ctx.notifyAll(("🪤 %s в клетке! Спасите!"):format(rat.DisplayName), "bad")
+	ctx.notifyAll("bad", "caught", rat.DisplayName)
 	ctx.checkAllCaught()
 	return true
 end
@@ -115,7 +116,7 @@ local function freeCage(cage, rescuer)
 		rescuer:SetAttribute("Score", (rescuer:GetAttribute("Score") or 0) + freed)
 		ctx.reward(rescuer, "Rescue")
 		ctx.fxAll("rescue", cage.Position)
-		ctx.notifyAll(("🔓 %s открыл клетку! Свободно крыс: %d"):format(rescuer.DisplayName, freed), "good")
+		ctx.notifyAll("good", "rescued", rescuer.DisplayName, freed)
 	end
 end
 
@@ -125,8 +126,8 @@ local function setupCage(cage)
 	end
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "FreePrompt"
-	prompt.ActionText = "Открыть клетку"
-	prompt.ObjectText = "Клетка"
+	prompt.ActionText = "Open cage"
+	prompt.ObjectText = "Cage"
 	prompt.HoldDuration = Config.FreeCageTime
 	prompt.MaxActivationDistance = 8
 	prompt.RequiresLineOfSight = false
@@ -150,7 +151,7 @@ function ChefService.stunRat(rat)
 	if hum then
 		hum.JumpPower = 0
 	end
-	ctx.notifyAll(("🪤 %s — в мышеловке!"):format(rat.DisplayName), "bad")
+	ctx.notifyAll("bad", "trapped", rat.DisplayName)
 	task.delay(Config.TrapStunTime, function()
 		if not rat.Parent then
 			return
@@ -293,10 +294,12 @@ end
 
 -- ===== Инструменты =====
 
-function ChefService.makeNetTool()
+function ChefService.makeNetTool(lang)
+	lang = lang or "en"
 	local tool = Instance.new("Tool")
-	tool.Name = "Сачок"
-	tool.ToolTip = "Клик — поймать крысу"
+	tool.Name = Locale.t(lang, "tool_net")
+	tool.ToolTip = Locale.t(lang, "tool_net_tip")
+	tool:SetAttribute("ToolKind", "Net")
 	tool.CanBeDropped = false
 	-- держим сачок за конец, сетка смотрит вверх
 	tool.Grip = CFrame.fromMatrix(Vector3.new(0, 0, -1.5), Vector3.new(0, 1, 0), Vector3.new(0, 0, 1), Vector3.new(1, 0, 0))
@@ -323,7 +326,7 @@ function ChefService.makeNetTool()
 end
 
 function ChefService.giveTool(player)
-	local tool = ChefService.makeNetTool()
+	local tool = ChefService.makeNetTool(Locale.detect(player))
 	tool.Activated:Connect(function()
 		local now = os.clock()
 		if (lastSwing[player] or 0) + Config.CatchCooldown > now then
@@ -366,9 +369,11 @@ function ChefService.giveTool(player)
 end
 
 function ChefService.giveTrapTool(player)
+	local lang = Locale.detect(player)
 	local tool = Instance.new("Tool")
-	tool.Name = "Мышеловка"
-	tool.ToolTip = "Клик — поставить мышеловку"
+	tool.Name = Locale.t(lang, "tool_trap")
+	tool.ToolTip = Locale.t(lang, "tool_trap_tip")
+	tool:SetAttribute("ToolKind", "Trap")
 	tool.CanBeDropped = false
 	local handle = simplePart("Handle", Vector3.new(1, 0.2, 1.4), CFrame.new(), Color3.fromRGB(190, 140, 80), Enum.Material.Wood)
 	handle.CanCollide = false
@@ -378,7 +383,7 @@ function ChefService.giveTrapTool(player)
 		local now = os.clock()
 		local left = (lastTrap[player] or -1000) + Config.TrapCooldown - now
 		if left > 0 then
-			ctx.notifyPlayer(player, ("Мышеловка перезаряжается: %d сек."):format(math.ceil(left)), "info")
+			ctx.notifyPlayer(player, "info", "trap_cooldown", math.ceil(left))
 			return
 		end
 		local root = getRoot(player.Character)
@@ -387,7 +392,7 @@ function ChefService.giveTrapTool(player)
 		end
 		lastTrap[player] = now
 		ChefService.placeTrap(root.Position + root.CFrame.LookVector * 4)
-		ctx.notifyPlayer(player, "🪤 Мышеловка поставлена!", "info")
+		ctx.notifyPlayer(player, "info", "trap_placed")
 	end)
 	tool.Parent = player:WaitForChild("Backpack")
 end
