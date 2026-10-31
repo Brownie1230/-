@@ -761,12 +761,12 @@ function TestMapBuilder.build()
 	Lighting.EnvironmentDiffuseScale = 0.25
 	Lighting.EnvironmentSpecularScale = 0.3
 	local atm = ensureEffect("Atmosphere", "RatAtmosphere")
-	atm.Density = 0.3
+	atm.Density = 0.12
 	atm.Offset = 0.1
 	atm.Color = Color3.fromRGB(80, 70, 100)
 	atm.Decay = Color3.fromRGB(40, 30, 60)
 	atm.Glare = 0
-	atm.Haze = 1.5
+	atm.Haze = 0.5
 	local bloom = ensureEffect("BloomEffect", "RatBloom")
 	bloom.Intensity = 0.7
 	bloom.Size = 30

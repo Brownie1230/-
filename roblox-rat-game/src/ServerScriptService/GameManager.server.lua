@@ -28,12 +28,24 @@ local squeakEvent = makeRemote("Squeak")
 makeRemote("ShopAction")
 makeRemote("MiniGame")
 
-local RatBuilder = require(script.Parent:WaitForChild("RatBuilder"))
-local DataService = require(script.Parent:WaitForChild("DataService"))
-local SabotageService = require(script.Parent:WaitForChild("SabotageService"))
-local ChefService = require(script.Parent:WaitForChild("ChefService"))
-local ChefAI = require(script.Parent:WaitForChild("ChefAI"))
-local TestMapBuilder = require(script.Parent:WaitForChild("TestMapBuilder"))
+-- Понятная ошибка, если какого-то скрипта не хватает или он назван неправильно
+local function needModule(name)
+	local m = script.Parent:WaitForChild(name, 8)
+	if not m then
+		error(("❌ НЕ НАЙДЕН скрипт «%s» в ServerScriptService! Проверь, что он есть, это ModuleScript и имя написано точно так: %s"):format(name, name))
+	end
+	if not m:IsA("ModuleScript") then
+		error(("❌ «%s» должен быть ModuleScript (фиолетовая иконка), а сейчас это %s. Удали его и создай заново как ModuleScript."):format(name, m.ClassName))
+	end
+	return require(m)
+end
+local RatBuilder = needModule("RatBuilder")
+local DataService = needModule("DataService")
+local SabotageService = needModule("SabotageService")
+local ChefService = needModule("ChefService")
+local ChefAI = needModule("ChefAI")
+local TestMapBuilder = needModule("TestMapBuilder")
+print("✅ Все скрипты найдены, игра запускается!")
 
 -- Общее состояние игры видно всем игрокам через атрибуты
 ReplicatedStorage:SetAttribute("State", "Lobby")
