@@ -1,0 +1,151 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=block" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;overflow:hidden}
+#wrap{position:relative;width:var(--w);height:var(--h);overflow:hidden;
+ background:radial-gradient(circle at 50% 42%, #ffd166 0%, #ff8c32 38%, #e2432a 70%, #6b1a3c 100%);}
+#rays{position:absolute;inset:-50%;background:repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,255,255,.16) 0deg 9deg, rgba(255,255,255,0) 9deg 22.5deg);}
+canvas{position:absolute;inset:0}
+#title{position:absolute;left:0;right:0;text-align:center;font-family:'Luckiest Guy','Arial Black',sans-serif;
+ color:#ffe04a;letter-spacing:2px;line-height:1;
+ -webkit-text-stroke:var(--stroke) #2a0d1c; paint-order:stroke fill;
+ text-shadow:0 var(--sh) 0 #2a0d1c, 0 calc(var(--sh)*2) 10px rgba(0,0,0,.45);}
+#title span{background:linear-gradient(#fff6b0,#ffd23a 55%,#ff9f1c);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:0}
+#sub{position:absolute;left:0;right:0;text-align:center;font-family:'Luckiest Guy','Arial Black',sans-serif;color:#fff;
+ -webkit-text-stroke:var(--stroke2) #2a0d1c;paint-order:stroke fill;}
+</style></head>
+<body>
+<div id="wrap"><div id="rays"></div><canvas id="c"></canvas><svg id="txt" style="position:absolute;inset:0" width="100%" height="100%"></svg></div>
+<script type="importmap">{"imports":{"three":"./package/build/three.module.js","three/addons/":"./package/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+const params = new URLSearchParams(location.search);
+const W = +params.get('w') || 512, H = +params.get('h') || 512, mode = params.get('mode') || 'icon';
+const wrap = document.getElementById('wrap');
+wrap.style.setProperty('--w', W+'px'); wrap.style.setProperty('--h', H+'px');
+const renderer = new THREE.WebGLRenderer({canvas: document.getElementById('c'), antialias:true, alpha:true, preserveDrawingBuffer:true});
+renderer.setPixelRatio(2); renderer.setSize(W,H);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
+const scene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(mode==='icon'?34:30, W/H, 0.1, 200);
+
+scene.add(new THREE.HemisphereLight(0xfff1dd, 0x6a3a50, 1.3));
+const sun = new THREE.DirectionalLight(0xffffff, 2.6); sun.position.set(6,12,8); sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048); Object.assign(sun.shadow.camera,{left:-12,right:12,top:12,bottom:-12}); scene.add(sun);
+const rim = new THREE.DirectionalLight(0xffc27a, 1.6); rim.position.set(-8,6,-6); scene.add(rim);
+
+const mat = (c, o={}) => new THREE.MeshStandardMaterial(Object.assign({color:c, roughness:0.45, metalness:0.0}, o));
+function add(mesh, parent){ mesh.castShadow = true; mesh.receiveShadow = true; (parent||scene).add(mesh); return mesh; }
+function ellipsoid(sx,sy,sz,color,parent){ const m=add(new THREE.Mesh(new THREE.SphereGeometry(1,48,32),mat(color)),parent); m.scale.set(sx,sy,sz); return m; }
+function ball(r,color,parent,o){ return add(new THREE.Mesh(new THREE.SphereGeometry(r,32,24),mat(color,o)),parent); }
+function cyl(r,h,color,parent,o){ return add(new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,48),mat(color,o)),parent); }
+function rbox(w,h,d,color,parent,rad=0.12){ return add(new THREE.Mesh(new RoundedBoxGeometry(w,h,d,4,rad),mat(color)),parent); }
+
+// пол (шахматная плитка)
+const tiles = new THREE.Group(); scene.add(tiles);
+for(let i=-8;i<8;i++) for(let j=-8;j<4;j++){ const t=new THREE.Mesh(new THREE.BoxGeometry(2,0.2,2), mat(((i+j)&1)?0xf3e6d0:0xb8463a,{roughness:0.7})); t.position.set(i*2+1,-0.1,j*2+1); t.receiveShadow=true; tiles.add(t); }
+
+// ===== КРЫСА =====
+const PINK=0xff9fb8;
+function makeRat(FUR, hatType, scared){
+const rat = new THREE.Group(); scene.add(rat);
+const body = ellipsoid(1.5,1.25,1.9,FUR,rat); body.position.set(0,1.45,0.2);
+ellipsoid(1.05,0.85,1.3,0xd9d9e2,rat).position.set(0,1.2,-0.55);
+const head = new THREE.Group(); rat.add(head); head.position.set(0,2.55,-1.35);
+ellipsoid(1.15,1.0,1.25,FUR,head);
+ellipsoid(0.7,0.55,0.6,0xd9d9e2,head).position.set(0,-0.3,-0.85);
+ball(0.24,0xff6f93,head).position.set(0,-0.15,-1.42);
+for(const s of [-1,1]){
+  const eye = ellipsoid(0.2,0.25,0.12,0x111116,head); eye.position.set(0.42*s,0.22,-1.05);
+  ball(0.07,0xffffff,head,{emissive:0xffffff,emissiveIntensity:0.6}).position.set(0.42*s+0.06,0.32,-1.14);
+  const brow = rbox(0.42,0.1,0.1,0x2b2b33,head,0.04); brow.position.set(0.42*s,0.55,-1.0); brow.rotation.z = -0.35*s;
+  const ear = cyl(0.62,0.12,FUR,head); ear.rotation.x=Math.PI/2; ear.position.set(0.85*s,0.85,0.05); ear.rotation.z=0.3*s;
+  const inner = cyl(0.42,0.13,PINK,head); inner.rotation.x=Math.PI/2; inner.position.set(0.85*s,0.85,-0.01); inner.rotation.z=0.3*s;
+  rbox(0.13,0.2,0.06,0xffffff,head,0.02).position.set(0.075*s,-0.62,-1.22);
+  for(const t of [-0.12,0.12]){ const w=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,1.2,6),mat(0xf6f6fa)); w.rotation.z=Math.PI/2+t*s; w.position.set(0.75*s,-0.25+t*0.6,-1.15); head.add(w); }
+  const foot = ellipsoid(0.32,0.2,0.42,PINK,rat); foot.position.set(0.75*s,0.2,-0.6);
+  const foot2 = ellipsoid(0.32,0.2,0.42,PINK,rat); foot2.position.set(0.85*s,0.2,1.2);
+}
+// хвост
+const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0,1.0,1.9),new THREE.Vector3(-0.5,0.5,2.9),new THREE.Vector3(-1.6,0.4,3.2),new THREE.Vector3(-2.3,1.0,2.8),new THREE.Vector3(-2.2,1.7,2.2)]);
+add(new THREE.Mesh(new THREE.TubeGeometry(curve,64,0.14,12),mat(PINK)),rat);
+const hat = new THREE.Group(); head.add(hat); hat.position.set(0.05,0.95,0.05); hat.rotation.set(-0.15,0,0.18);
+if(hatType==='cowboy'){
+cyl(1.45,0.12,0x8c5a32,hat);
+const crown = cyl(0.78,0.85,0xa86b3c,hat); crown.position.y=0.45; crown.scale.set(1,1,0.9);
+cyl(0.8,0.2,0x3b2414,hat).position.y=0.15;
+} else if(hatType==='party'){
+const cone = add(new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.6,1.5,40),mat(0x4fb3ff)),hat); cone.position.y=0.7;
+for(let i=0;i<3;i++){ const band=add(new THREE.Mesh(new THREE.CylinderGeometry(0.52-i*0.17,0.56-i*0.17,0.14,40),mat(0xffd93c)),hat); band.position.y=0.25+i*0.42; }
+ball(0.2,0xff4fa0,hat).position.y=1.5;
+}
+return rat;
+}
+
+// ===== ПОВАР (блочный аватар) =====
+const chef = new THREE.Group(); scene.add(chef);
+const SKIN=0xffd34d;
+const torso = rbox(2.0,2.0,1.0,0xffffff,chef); torso.position.y=3.0;
+for(let i=0;i<3;i++) ball(0.09,0x333333,chef).position.set(0.35,3.6-i*0.45,-0.52);
+const apron = rbox(1.5,1.3,0.06,0xe8e8f0,chef,0.03); apron.position.set(0,2.55,-0.53);
+for(const s of [-1,1]){ const leg=rbox(0.95,2.0,1.0,0x2e3a66,chef); leg.position.set(0.5*s,1.0,0); }
+const armL = rbox(0.95,2.0,1.0,SKIN,chef); armL.position.set(1.5,3.0,0);
+const armR = new THREE.Group(); chef.add(armR); armR.position.set(-1.5,3.9,0); armR.rotation.x = 2.45; armR.rotation.z = -0.1;
+rbox(0.95,2.0,1.0,SKIN,armR).position.y=-0.9;
+const chefHead = new THREE.Group(); chef.add(chefHead); chefHead.position.y=4.65;
+const hd = add(new THREE.Mesh(new THREE.CylinderGeometry(0.65,0.65,1.2,40),mat(SKIN)),chefHead);
+ball(0.65,SKIN,chefHead).position.y=0.0; hd.scale.set(1.0,1,1.0);
+// лицо
+for(const s of [-1,1]){ ellipsoid(0.1,0.16,0.06,0x111111,chefHead).position.set(0.25*s,0.12,-0.62);
+  const b=rbox(0.32,0.08,0.06,0x111111,chefHead,0.03); b.position.set(0.25*s,0.38,-0.62); b.rotation.z=0.4*s; }
+const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.22,0.05,8,24,Math.PI),mat(0x111111)); mouth.position.set(0,-0.3,-0.63); chefHead.add(mouth);
+// усы
+for(const s of [-1,1]){ const m=ellipsoid(0.22,0.08,0.06,0x3a2a1a,chefHead); m.position.set(0.17*s,-0.12,-0.66); m.rotation.z=-0.3*s; }
+// колпак
+cyl(0.72,0.6,0xffffff,chefHead).position.y=0.85;
+ellipsoid(0.95,0.7,0.95,0xffffff,chefHead).position.y=1.45;
+// сачок
+const net = new THREE.Group(); armR.add(net); net.position.set(0,-1.9,0); net.rotation.x = -0.75;
+const stick = cyl(0.08,3.6,0x7a4f2a,net); stick.position.y=-1.6;
+const ring = add(new THREE.Mesh(new THREE.TorusGeometry(1.0,0.08,12,40),mat(0x8a8a95,{metalness:0.6,roughness:0.3})),net); ring.position.y=-4.3; ring.rotation.y=Math.PI/2; ring.rotation.x=0.5;
+const mesh = add(new THREE.Mesh(new THREE.SphereGeometry(1.0,24,16,0,Math.PI*2,0,Math.PI/2),mat(0xffffff,{transparent:true,opacity:0.55,side:THREE.DoubleSide,wireframe:false})),net);
+mesh.position.y=-4.3; mesh.rotation.z=Math.PI/2; mesh.rotation.y=0.5; mesh.scale.set(1,1.2,1);
+chef.position.set(2.2,0,3.6); chef.rotation.y = 0.5;
+
+const rat = makeRat(0x9a9aa6,'cowboy');
+rat.position.set(-1.6,0,0.2); rat.rotation.y = 0.55;
+if(mode!=='icon'){ const rat2 = makeRat(0xe9e4da,'party'); rat2.scale.setScalar(0.85); rat2.position.set(-4.6,0,6.2); rat2.rotation.y = 0.2; }
+// сыр
+const cheeseShape = new THREE.Shape(); cheeseShape.moveTo(0,0); cheeseShape.lineTo(2.2,0); cheeseShape.lineTo(0,1.1); cheeseShape.lineTo(0,0);
+const cheese = add(new THREE.Mesh(new THREE.ExtrudeGeometry(cheeseShape,{depth:1.4,bevelEnabled:true,bevelSize:0.06,bevelThickness:0.06,bevelSegments:2}),mat(0xffc93c,{roughness:0.5})));
+cheese.position.set(1.4,0,-1.6); cheese.rotation.y=-0.5;
+for(const p of [[1.9,0.4,-1.7],[2.4,0.25,-1.0],[1.6,0.7,-1.1]]) ball(0.16,0xe0a020).position.set(...p);
+
+if(mode==='icon'){ cam.position.set(0.6,5.2,-14.5); cam.lookAt(0.4,3.4,1.5); }
+else { cam.position.set(-3.5,5.0,-14.5); cam.lookAt(-1.8,3.2,1.5); cam.setViewOffset(W,H,-W*0.17,0,W,H); }
+renderer.render(scene, cam);
+
+await document.fonts.ready;
+const svg=document.getElementById('txt');
+function txt(str,x,y,size,fill,stroke,sw,rot){
+  const ns='http://www.w3.org/2000/svg';
+  const g=document.createElementNS(ns,'g'); g.setAttribute('transform',`rotate(${rot||0} ${x} ${y})`);
+  for(const [dy,col,w] of [[size*0.08,'#2a0d1c',sw],[0,stroke,sw],[0,fill,0]]){
+    const t=document.createElementNS(ns,'text');
+    t.setAttribute('x',x); t.setAttribute('y',y+dy); t.setAttribute('text-anchor','middle');
+    t.setAttribute('font-family',"'Luckiest Guy','Arial Black',sans-serif"); t.setAttribute('font-size',size);
+    t.setAttribute('fill',w?col:'url(#gold)'); if(w){t.setAttribute('stroke',col); t.setAttribute('stroke-width',w); t.setAttribute('stroke-linejoin','round');}
+    t.textContent=str; g.appendChild(t);
+  }
+  svg.appendChild(g);
+}
+svg.innerHTML='<defs><linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff7b0"/><stop offset="0.5" stop-color="#ffd23a"/><stop offset="1" stop-color="#ff9a1c"/></linearGradient></defs>';
+if(mode==='icon'){ txt('RAT RUCKUS', W/2, H-26, 76, '', '#2a0d1c', 16, -3); }
+else { txt('RAT', W*0.2, 330, 260, '', '#2a0d1c', 36, -6); txt('RUCKUS', W*0.22, 560, 230, '', '#2a0d1c', 34, -6); txt('RATS vs CHEF', W*0.22, 720, 96, '', '#2a0d1c', 20, -6); }
+window.DONE = true;
+</script>
+</body></html>
