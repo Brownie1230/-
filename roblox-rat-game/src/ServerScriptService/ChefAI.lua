@@ -1,7 +1,8 @@
 -- ChefAI (ModuleScript) — ServerScriptService
 -- Повар-робот: играет за повара, если людей мало.
 -- Видит крыс перед собой (за столами и стенами можно спрятаться!),
--- гонится, ловит, идёт чинить сломанное и патрулирует точки с тегом "PatrolPoint".
+-- слышит поломки, писк и мышеловки, гонится, ловит, чинит, ставит мышеловки,
+-- злится во время тревоги и патрулирует точки с тегом "PatrolPoint".
 
 local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
@@ -16,12 +17,14 @@ local running = false
 local generation = 0
 local spawnCFrame = CFrame.new(0, 5, 0)
 local skipUntil = {} -- предметы, до которых не получилось дойти
+local alertPos = nil
+local alertTime = 0
 
 local AGENT = { AgentRadius = 2, AgentHeight = 5, AgentCanJump = true, WaypointSpacing = 4 }
 local ANIM_WALK = "rbxassetid://507777826" -- стандартная R15 ходьба
 local ANIM_IDLE = "rbxassetid://507766388" -- стандартная R15 стойка
 local OFFSETS = {
-	Vector3.zero,
+	Vector3.new(0, 0, 0),
 	Vector3.new(6, 0, 0),
 	Vector3.new(-6, 0, 0),
 	Vector3.new(0, 0, 6),
@@ -58,8 +61,16 @@ local function buildNPC()
 	Chef.dressChef(model)
 	getRoot(model):SetNetworkOwner(nil)
 
-	local animator = hum:FindFirstChildOfClass("Animator") or Instance.new("Animator")
-	animator.Parent = hum
+	-- робот держит сачок
+	local net = Chef.makeNetTool()
+	net.Parent = model
+	hum:EquipTool(net)
+
+	local animator = hum:FindFirstChildOfClass("Animator")
+	if not animator then
+		animator = Instance.new("Animator")
+		animator.Parent = hum
+	end
 	local walkAnim = Instance.new("Animation")
 	walkAnim.AnimationId = ANIM_WALK
 	local idleAnim = Instance.new("Animation")
@@ -109,7 +120,7 @@ local function findTarget()
 		return nil
 	end
 	local best, bestDist = nil, math.huge
-	for _, p in Players:GetPlayers() do
+	for _, p in ipairs(Players:GetPlayers()) do
 		if p:GetAttribute("Role") == "Rat" and not p:GetAttribute("Caught") and p.Character then
 			local r = getRoot(p.Character)
 			if r and canSee(root, p.Character) then
@@ -134,6 +145,14 @@ local function computePath(from, to)
 	return nil
 end
 
+local function updateSpeed(hum)
+	local speed = Config.AIChefWalkSpeed
+	if (ReplicatedStorage:GetAttribute("Chaos") or 0) >= Config.AlarmChaos then
+		speed = speed + Config.ChefRageBonus
+	end
+	hum.WalkSpeed = speed
+end
+
 -- Идти к точке по пути. abort() => true прерывает (например, увидел крысу)
 local function walkTo(target, alive, abort)
 	local root = getRoot(npc)
@@ -142,8 +161,8 @@ local function walkTo(target, alive, abort)
 		return
 	end
 
-	local path
-	for _, off in OFFSETS do
+	local path = nil
+	for _, off in ipairs(OFFSETS) do
 		path = computePath(root.Position, Vector3.new(target.X, 1, target.Z) + off)
 		if path then
 			break
@@ -155,7 +174,7 @@ local function walkTo(target, alive, abort)
 		return
 	end
 
-	for _, wp in path:GetWaypoints() do
+	for _, wp in ipairs(path:GetWaypoints()) do
 		if not alive() then
 			return
 		end
@@ -164,6 +183,8 @@ local function walkTo(target, alive, abort)
 		end
 		hum:MoveTo(wp.Position)
 		local started = os.clock()
+		local lastPos = root.Position
+		local stuckTime = 0
 		while os.clock() - started < 2 do
 			local flat = (root.Position - wp.Position) * Vector3.new(1, 0, 1)
 			if flat.Magnitude < 2.5 then
@@ -173,13 +194,24 @@ local function walkTo(target, alive, abort)
 				return
 			end
 			task.wait(0.1)
+			-- застрял? подпрыгнуть
+			if (root.Position - lastPos).Magnitude < 0.05 then
+				stuckTime = stuckTime + 0.1
+				if stuckTime > 0.8 then
+					hum.Jump = true
+					stuckTime = 0
+				end
+			else
+				stuckTime = 0
+			end
+			lastPos = root.Position
 		end
 	end
 end
 
 local function nearestStation(list, pos)
 	local best, bestDist = nil, math.huge
-	for _, st in list do
+	for _, st in ipairs(list) do
 		if (skipUntil[st] or 0) < os.clock() then
 			local d = (st.Position - pos).Magnitude
 			if d < bestDist then
@@ -197,7 +229,7 @@ local function brain(myGen)
 	local lastSeen = nil
 
 	while running and generation == myGen do
-		-- робот упал с карты / умер — создаём заново
+		-- робот упал с карты / умер: создаём заново
 		local hum = npc and npc:FindFirstChildOfClass("Humanoid")
 		if not npc or not npc.Parent or not hum or hum.Health <= 0 then
 			if npc then
@@ -217,13 +249,18 @@ local function brain(myGen)
 			hum = npc:FindFirstChildOfClass("Humanoid")
 		end
 		local root = getRoot(npc)
+		updateSpeed(hum)
 
 		local target = findTarget()
-		local tRoot = target and getRoot(target.Character)
+		local tRoot = nil
+		if target then
+			tRoot = getRoot(target.Character)
+		end
 		if tRoot then
 			lastSeen = tRoot.Position
 			if (tRoot.Position - root.Position).Magnitude <= Config.CatchRange - 1 then
-				Chef.catchRat(target)
+				ctx.fxAll("swing", root.Position)
+				Chef.catchRat(target, nil)
 				lastSeen = nil
 				task.wait(1)
 			else
@@ -234,6 +271,11 @@ local function brain(myGen)
 			-- проверить место, где последний раз видел крысу
 			local pos = lastSeen
 			lastSeen = nil
+			walkTo(pos, alive, findTarget)
+		elseif alertPos and os.clock() - alertTime < 20 then
+			-- услышал шум
+			local pos = alertPos
+			alertPos = nil
 			walkTo(pos, alive, findTarget)
 		else
 			local st = nearestStation(Sabotage.getBroken(), root.Position)
@@ -251,7 +293,11 @@ local function brain(myGen)
 						end
 					end
 					if not interrupted then
-						Sabotage.repair(st, "Повар-робот 🤖")
+						Sabotage.repair(st, "Повар-робот 🤖", nil)
+						-- иногда оставляет мышеловку рядом с починенным
+						if math.random() < 0.5 and Chef.trapCount() < Config.MaxTraps then
+							Chef.placeTrap(root.Position + root.CFrame.LookVector * 3)
+						end
 					end
 				elseif alive() and st:GetAttribute("Broken") then
 					skipUntil[st] = os.clock() + 15 -- не дошёл, попробуем позже
@@ -268,12 +314,25 @@ local function brain(myGen)
 	end
 end
 
+-- Шум (поломка, писк, мышеловка): робот идёт проверить, если услышал
+function ChefAI.alert(position, range)
+	if not running or not npc then
+		return
+	end
+	local root = getRoot(npc)
+	if root and (position - root.Position).Magnitude <= (range or Config.AIHearingRange) then
+		alertPos = position
+		alertTime = os.clock()
+	end
+end
+
 function ChefAI.start(cframe)
 	ChefAI.stop()
 	spawnCFrame = cframe
 	running = true
-	generation += 1
+	generation = generation + 1
 	skipUntil = {}
+	alertPos = nil
 	local myGen = generation
 	task.spawn(function()
 		local model = buildNPC()
@@ -288,7 +347,7 @@ end
 
 function ChefAI.stop()
 	running = false
-	generation += 1
+	generation = generation + 1
 	if npc then
 		npc:Destroy()
 		npc = nil

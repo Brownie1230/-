@@ -16,6 +16,12 @@
       "StarterPlayerScripts": {
         "RatHUD": {
           "$path": "src/StarterPlayerScripts/RatHUD.client.lua"
+        },
+        "Effects": {
+          "$path": "src/StarterPlayerScripts/Effects.client.lua"
+        },
+        "MiniGames": {
+          "$path": "src/StarterPlayerScripts/MiniGames.client.lua"
         }
       }
     }
