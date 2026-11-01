@@ -1,0 +1,61 @@
+{
+ "scenes": [
+  {
+   "start": 0.0,
+   "end": 2.907,
+   "voice": 0.15,
+   "vdur": 2.357,
+   "text": "Guys, this new Roblox game is insane!"
+  },
+  {
+   "start": 2.907,
+   "end": 6.507,
+   "voice": 3.057,
+   "vdur": 2.775,
+   "text": "You're a rat, and your job is to wreck the whole restaurant!"
+  },
+  {
+   "start": 6.507,
+   "end": 9.707,
+   "voice": 6.657,
+   "vdur": 1.591,
+   "text": "Watch out, the chef is coming!"
+  },
+  {
+   "start": 9.707,
+   "end": 12.907,
+   "voice": 9.857,
+   "vdur": 1.649,
+   "text": "Every prank gives you cheese coins."
+  },
+  {
+   "start": 12.907,
+   "end": 15.507,
+   "voice": 13.057,
+   "vdur": 1.393,
+   "text": "And look, a golden cheese!"
+  },
+  {
+   "start": 15.507,
+   "end": 20.107,
+   "voice": 15.657,
+   "vdur": 2.752,
+   "text": "I bought the mega pack, and boom! Ten thousand cheese!"
+  },
+  {
+   "start": 20.107,
+   "end": 23.907,
+   "voice": 20.257,
+   "vdur": 2.009,
+   "text": "Bought a crown! I'm the richest rat on the server!"
+  },
+  {
+   "start": 23.907,
+   "end": 27.507,
+   "voice": 24.057,
+   "vdur": 2.473,
+   "text": "Play Rat Ruckus on Roblox! Link in bio!"
+  }
+ ],
+ "total": 27.91
+}
