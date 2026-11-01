@@ -81,6 +81,13 @@ local function ghost(p) -- невидимая, не мешает ходить и
 	return p
 end
 
+local function barrier(p) -- невидимая стена: не пускает, но не видна и не мешает камере
+	p.Transparency = 1
+	p.CanCollide = true
+	p.CanTouch = false
+	return p
+end
+
 local function decor(p) -- мелочь: не мешает ходить
 	p.CanCollide = false
 	p.CanQuery = false
@@ -1046,20 +1053,117 @@ function TestMapBuilder.build()
 	-- ---------- ЛОББИ (отдельная папка) ----------
 	map = Instance.new("Folder")
 	map.Name = "Lobby"
-	block("LobbyFloor", Vector3.new(60, 1, 50), Vector3.new(0, 0, 115), Color3.fromRGB(90, 70, 60), Enum.Material.WoodPlanks)
-	for _, side in ipairs({ -1, 1 }) do
-		block("Fence", Vector3.new(0.5, 2, 50), Vector3.new(30 * side, 1.5, 115), C.darkWood, Enum.Material.Wood)
-		block("Fence", Vector3.new(60, 2, 0.5), Vector3.new(0, 1.5, 115 + 25 * side), C.darkWood, Enum.Material.Wood)
+	-- светлый деревянный пол + клетчатый коврик у точки появления
+	block("LobbyFloor", Vector3.new(60, 1, 50), Vector3.new(0, 0, 115), Color3.fromRGB(215, 170, 120), Enum.Material.WoodPlanks)
+	for i = 0, 5 do
+		for j = 0, 3 do
+			local white = (i + j) % 2 == 0
+			decor(block("Rug", Vector3.new(3, 0.1, 3), Vector3.new(-7.5 + i * 3, 0.55, 107.5 + j * 3), white and C.white or Color3.fromRGB(220, 60, 60), Enum.Material.Fabric))
+		end
 	end
+	-- трава вокруг лобби: вместо чёрной бездны — зелёный сад
+	block("LobbyGrass", Vector3.new(180, 1, 120), Vector3.new(0, -0.6, 130), Color3.fromRGB(95, 175, 85), Enum.Material.Grass)
+
+	-- 🌳 живая изгородь по краям + НЕВИДИМАЯ стена до неба: из лобби не уйти и не упасть
+	local HEDGE = Color3.fromRGB(60, 145, 65)
+	for _, side in ipairs({ -1, 1 }) do
+		block("Hedge", Vector3.new(2, 4, 54), Vector3.new(31 * side, 2.5, 115), HEDGE, Enum.Material.Grass)
+		block("Hedge", Vector3.new(64, 4, 2), Vector3.new(0, 2.5, 115 + 26 * side), HEDGE, Enum.Material.Grass)
+		barrier(block("LobbyBarrier", Vector3.new(2, 150, 54), Vector3.new(31 * side, 75, 115)))
+		barrier(block("LobbyBarrier", Vector3.new(64, 150, 2), Vector3.new(0, 75, 115 + 26 * side)))
+	end
+	-- цветы на изгороди
+	local FLOWERS = { Color3.fromRGB(255, 90, 120), Color3.fromRGB(255, 220, 60), Color3.fromRGB(255, 255, 255), Color3.fromRGB(190, 120, 255) }
+	local n = 0
+	for z = 90, 140, 4 do
+		for _, side in ipairs({ -1, 1 }) do
+			n = n + 1
+			decor(ball("Flower", 0.9, Vector3.new(31 * side, 4.7, z), FLOWERS[n % #FLOWERS + 1], Enum.Material.SmoothPlastic))
+		end
+	end
+	for x = -28, 28, 4 do
+		for _, side in ipairs({ -1, 1 }) do
+			n = n + 1
+			decor(ball("Flower", 0.9, Vector3.new(x, 4.7, 115 + 26 * side), FLOWERS[n % #FLOWERS + 1], Enum.Material.SmoothPlastic))
+		end
+	end
+
+	-- 🏮 столбы с фонарями по углам
+	local corners = { { -31, 89 }, { 31, 89 }, { -31, 141 }, { 31, 141 } }
+	for _, c in ipairs(corners) do
+		block("CornerPost", Vector3.new(1.5, 11, 1.5), Vector3.new(c[1], 5.5, c[2]), C.darkWood, Enum.Material.Wood)
+		local lamp = block("CornerLamp", Vector3.new(2, 2, 2), Vector3.new(c[1], 11.8, c[2]), Color3.fromRGB(255, 225, 150), Enum.Material.Neon)
+		local pl = Instance.new("PointLight")
+		pl.Range = 40
+		pl.Brightness = 2
+		pl.Color = Color3.fromRGB(255, 220, 160)
+		pl.Parent = lamp
+	end
+	-- 🎉 гирлянды из разноцветных лампочек между углами (провисают дугой)
+	local BULBS = { Color3.fromRGB(255, 70, 70), Color3.fromRGB(255, 210, 60), Color3.fromRGB(80, 230, 110), Color3.fromRGB(80, 170, 255), Color3.fromRGB(255, 120, 220) }
+	local b = 0
+	for i = 1, 4 do
+		local a = corners[({ 1, 2, 4, 3 })[i]]
+		local c = corners[({ 2, 4, 3, 1 })[i]]
+		local from, to = Vector3.new(a[1], 11, a[2]), Vector3.new(c[1], 11, c[2])
+		local count = math.floor((to - from).Magnitude / 2.5)
+		for k = 1, count - 1 do
+			local f = k / count
+			local pos = from + (to - from) * f - Vector3.new(0, math.sin(f * math.pi) * 2.5, 0)
+			b = b + 1
+			local bulb = decor(ball("FairyLight", 0.6, pos, BULBS[b % #BULBS + 1], Enum.Material.Neon))
+			if b % 6 == 0 then
+				local pl = Instance.new("PointLight")
+				pl.Range = 12
+				pl.Brightness = 1
+				pl.Color = bulb.Color
+				pl.Parent = bulb
+			end
+		end
+	end
+	-- фонари внутри лобби (ярче, чем раньше)
 	for _, pos in ipairs({ { -22, 98 }, { 22, 98 }, { -22, 132 }, { 22, 132 } }) do
 		block("LampPost", Vector3.new(0.5, 8, 0.5), Vector3.new(pos[1], 4.5, pos[2]), C.black, Enum.Material.Metal)
 		local bulb = ball("LampBulb", 1.2, Vector3.new(pos[1], 9, pos[2]), Color3.fromRGB(255, 220, 150), Enum.Material.Neon)
 		local pl = Instance.new("PointLight")
-		pl.Range = 30
-		pl.Brightness = 1.6
-		pl.Color = Color3.fromRGB(255, 200, 140)
+		pl.Range = 34
+		pl.Brightness = 2.2
+		pl.Color = Color3.fromRGB(255, 210, 160)
 		pl.Parent = bulb
 	end
+	-- 🌳 деревья
+	for _, pos in ipairs({ { -26, 93 }, { -26, 137 } }) do
+		cyl("TreeTrunk", 6, 1.4, Vector3.new(pos[1], 3.5, pos[2]), C.darkWood, Enum.Material.Wood)
+		decor(ball("TreeLeaves", 6, Vector3.new(pos[1], 8, pos[2]), Color3.fromRGB(70, 165, 70), Enum.Material.Grass))
+		decor(ball("TreeLeaves", 4, Vector3.new(pos[1] + 1.5, 10.5, pos[2] + 0.5), Color3.fromRGB(90, 185, 80), Enum.Material.Grass))
+	end
+	-- ☂️ столики кафе с зонтиками
+	local UMBRELLA = { Color3.fromRGB(255, 90, 90), Color3.fromRGB(80, 170, 255), Color3.fromRGB(255, 200, 60) }
+	for i, pos in ipairs({ { -15, 95 }, { -16, 129 }, { -15, 118 } }) do
+		local x, z = pos[1], pos[2]
+		cyl("CafeTable", 0.3, 4, Vector3.new(x, 2.6, z), C.white, Enum.Material.SmoothPlastic)
+		cyl("CafeTableLeg", 2.2, 0.4, Vector3.new(x, 1.5, z), C.black, Enum.Material.Metal)
+		decor(cyl("UmbrellaPole", 5, 0.25, Vector3.new(x, 5.2, z), C.white, Enum.Material.Metal))
+		decor(cyl("Umbrella", 0.4, 7, Vector3.new(x, 7.6, z), UMBRELLA[i], Enum.Material.Fabric))
+		decor(cyl("Umbrella", 0.5, 4, Vector3.new(x, 8, z), C.white, Enum.Material.Fabric))
+		decor(ball("UmbrellaTop", 0.7, Vector3.new(x, 8.4, z), UMBRELLA[i], Enum.Material.SmoothPlastic))
+		for _, dx in ipairs({ -3, 3 }) do
+			block("CafeChair", Vector3.new(1.6, 0.3, 1.6), Vector3.new(x + dx, 1.6, z), UMBRELLA[i], Enum.Material.SmoothPlastic)
+			block("CafeChairLeg", Vector3.new(0.3, 1.2, 0.3), Vector3.new(x + dx, 0.9, z), C.black, Enum.Material.Metal)
+			block("CafeChairBack", Vector3.new(0.3, 1.6, 1.6), Vector3.new(x + dx + (dx > 0 and 0.7 or -0.7), 2.5, z), UMBRELLA[i], Enum.Material.SmoothPlastic)
+		end
+	end
+	-- 🎈 воздушные шарики
+	local BALLOONS = { Color3.fromRGB(255, 80, 90), Color3.fromRGB(255, 210, 50), Color3.fromRGB(90, 200, 255), Color3.fromRGB(255, 130, 220), Color3.fromRGB(120, 230, 120) }
+	for ci, c in ipairs({ { -17.5, 105 }, { 17.5, 105 }, { -17, 137 }, { 16, 138 } }) do
+		for k = 1, 3 do
+			local off = Vector3.new((k - 2) * 0.9, 7 + (k % 2) * 0.8, ((k + ci) % 2) * 0.6)
+			local pos = Vector3.new(c[1], 0, c[2]) + off
+			decor(ball("Balloon", 1.6, pos, BALLOONS[(ci + k) % #BALLOONS + 1], Enum.Material.SmoothPlastic))
+			decor(block("BalloonString", Vector3.new(0.05, pos.Y - 2.6, 0.05), Vector3.new(pos.X, (pos.Y + 2.6) / 2 - 0.4, pos.Z), C.white))
+		end
+	end
+
 	-- гигантский сыр
 	local bigCheese = block("BigCheese", Vector3.new(8, 5, 8), CFrame.new(0, 3, 128) * CFrame.Angles(0, math.rad(30), 0), C.cheese)
 	local wedge = Instance.new("SpecialMesh")
@@ -1154,8 +1258,8 @@ function TestMapBuilder.build()
 	-- Ночное освещение и атмосфера
 	Lighting.ClockTime = 0
 	Lighting.Brightness = 1
-	Lighting.Ambient = Color3.fromRGB(40, 34, 48)
-	Lighting.OutdoorAmbient = Color3.fromRGB(55, 55, 80)
+	Lighting.Ambient = Color3.fromRGB(58, 50, 68) -- ночь, но не слишком темно
+	Lighting.OutdoorAmbient = Color3.fromRGB(75, 75, 105)
 	Lighting.EnvironmentDiffuseScale = 0.25
 	Lighting.EnvironmentSpecularScale = 0.3
 	local atm = ensureEffect("Atmosphere", "RatAtmosphere")

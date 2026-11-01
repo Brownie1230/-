@@ -827,6 +827,27 @@ local function spawnGolden()
 	end)
 end
 
+-- ===== 🪂 Упал с карты? Возвращаем назад =====
+task.spawn(function()
+	while true do
+		task.wait(1)
+		for _, p in ipairs(Players:GetPlayers()) do
+			local root = getRoot(p.Character)
+			if root and root.Position.Y < Config.FallRescueY then
+				local role = p:GetAttribute("Role")
+				local tag = "LobbySpawn"
+				if role == "Rat" then
+					tag = "RatSpawn"
+				elseif role == "Chef" then
+					tag = "ChefSpawn"
+				end
+				root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+				p.Character:PivotTo(spawnPoint(tag))
+			end
+		end
+	end
+end)
+
 -- ===== Главный цикл =====
 while true do
 	-- ЛОББИ

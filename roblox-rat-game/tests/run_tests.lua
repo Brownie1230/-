@@ -336,6 +336,22 @@ check(#CS:GetTagged("GoldenSpot") >= 14, "golden spots")
 check(#CS:GetTagged("RatHole") == 12, "6 rat hole pairs")
 check(M.workspace:FindFirstChild("MapPizzeria") ~= nil and M.workspace:FindFirstChild("Lobby") ~= nil, "pizzeria + lobby folders")
 check(RS:GetAttribute("MapList") == "Restaurant,Pizzeria", "map list")
+-- лобби: невидимые стены до неба и сад вокруг
+local barriers = descendants(M.workspace.Lobby, function(d)
+	return d.Name == "LobbyBarrier"
+end)
+check(#barriers == 4, "lobby has 4 invisible walls")
+for _, b in ipairs(barriers) do
+	check(b.CanCollide == true and b.Transparency == 1 and b.Size.Y >= 100, "lobby wall is solid, invisible and tall")
+end
+check(M.workspace.Lobby:FindFirstChild("LobbyGrass") ~= nil and M.workspace.Lobby:FindFirstChild("FairyLight") ~= nil, "lobby garden + fairy lights")
+local restMaxZ = -math.huge
+for _, d in ipairs(M.workspace.Map:GetDescendants()) do
+	if d:IsA("BasePart") then
+		restMaxZ = math.max(restMaxZ, d.Position.Z + d.Size.Z / 2)
+	end
+end
+check(restMaxZ < 70, "restaurant does not overlap the lobby garden, maxZ=" .. restMaxZ)
 check(#CS:GetTagged("Cage") == 2, "2 cages")
 check(#CS:GetTagged("RatSpawn") >= 6 and #CS:GetTagged("ChefSpawn") == 2 and #CS:GetTagged("LobbySpawn") >= 1, "spawns")
 check(#CS:GetTagged("AlarmLight") >= 1, "alarm lights")
@@ -355,6 +371,11 @@ end
 local alice = join("Alice", "ru-ru")
 advance(1)
 check(alice:GetAttribute("Role") == "Lobby", "alice in lobby")
+check(M.Lighting.ClockTime > 10, "lobby is bright daytime, ClockTime=" .. M.Lighting.ClockTime)
+-- упал с карты → вернулся в лобби
+alice.Character:PivotTo(CFrame.new(0, -60, 115))
+advance(1.5)
+check(rootOf(alice).Position.Y > -5, "fall rescue returns player, y=" .. rootOf(alice).Position.Y)
 check(alice:GetAttribute("Coins") == 25, "alice got daily bonus 25, coins=" .. tostring(alice:GetAttribute("Coins")))
 check(guiText(alice, function(d)
 	return d.Text:find("Ежедневный бонус") ~= nil
@@ -432,6 +453,8 @@ check(waitUntil(function()
 	return RS:GetAttribute("State") == "Playing"
 end, 6), "playing")
 advance(0.5)
+advance(4)
+check(M.Lighting.ClockTime < 3, "round is night, ClockTime=" .. M.Lighting.ClockTime)
 check(alice:GetAttribute("BaseSpeed") == 14, "rat speed 14 got " .. tostring(alice:GetAttribute("BaseSpeed")))
 check(M.workspace:FindFirstChild("ChefNPC") ~= nil, "AI chef spawned")
 local npc = M.workspace:FindFirstChild("ChefNPC")

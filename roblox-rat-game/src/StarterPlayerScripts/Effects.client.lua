@@ -460,6 +460,66 @@ local function fadeMusic(s, target, dt)
 	end
 end
 
+-- ===== ☀️ В лобби светлый день, в раунде ночь (меняется только на твоём экране) =====
+local Lighting = game:GetService("Lighting")
+local DAY = {
+	ClockTime = 14,
+	Brightness = 2.4,
+	Ambient = Color3.fromRGB(125, 115, 120),
+	OutdoorAmbient = Color3.fromRGB(150, 150, 160),
+	EnvironmentDiffuseScale = 0.7,
+	Density = 0.2,
+	Haze = 0.8,
+	AtmColor = Color3.fromRGB(200, 215, 235),
+	Decay = Color3.fromRGB(120, 150, 200),
+}
+local night = nil -- ночные настройки карты (запоминаем при старте)
+local dayMix = nil -- 0 = ночь, 1 = день
+local function updateDaylight(dt, inLobby)
+	local atm = Lighting:FindFirstChildOfClass("Atmosphere")
+	if not night then
+		night = {
+			ClockTime = Lighting.ClockTime,
+			Brightness = Lighting.Brightness,
+			Ambient = Lighting.Ambient,
+			OutdoorAmbient = Lighting.OutdoorAmbient,
+			EnvironmentDiffuseScale = Lighting.EnvironmentDiffuseScale,
+			Density = atm and atm.Density,
+			Haze = atm and atm.Haze,
+			AtmColor = atm and atm.Color,
+			Decay = atm and atm.Decay,
+		}
+	end
+	local target = inLobby and 1 or 0
+	local before = dayMix
+	if dayMix == nil then
+		dayMix = target
+	else
+		dayMix = dayMix + (target - dayMix) * math.min(1, dt * 1.2) -- плавный рассвет/закат
+		if math.abs(target - dayMix) < 0.003 then
+			dayMix = target
+		end
+	end
+	if before == dayMix then
+		return
+	end
+	local k = dayMix
+	local function mix(a, b)
+		return a + (b - a) * k
+	end
+	Lighting.ClockTime = mix(night.ClockTime, DAY.ClockTime)
+	Lighting.Brightness = mix(night.Brightness, DAY.Brightness)
+	Lighting.Ambient = night.Ambient:Lerp(DAY.Ambient, k)
+	Lighting.OutdoorAmbient = night.OutdoorAmbient:Lerp(DAY.OutdoorAmbient, k)
+	Lighting.EnvironmentDiffuseScale = mix(night.EnvironmentDiffuseScale, DAY.EnvironmentDiffuseScale)
+	if atm and night.Density then
+		atm.Density = mix(night.Density, DAY.Density)
+		atm.Haze = mix(night.Haze, DAY.Haze)
+		atm.Color = night.AtmColor:Lerp(DAY.AtmColor, k)
+		atm.Decay = night.Decay:Lerp(DAY.Decay, k)
+	end
+end
+
 -- ===== Каждый кадр =====
 local camOffset = Vector3.new(0, 0, 0)
 
@@ -472,6 +532,8 @@ RunService.RenderStepped:Connect(function(dt)
 	local character = player.Character
 	local myRoot = character and character:FindFirstChild("HumanoidRootPart")
 	local hum = character and character:FindFirstChildOfClass("Humanoid")
+
+	updateDaylight(dt, role ~= "Rat" and role ~= "Chef")
 
 	-- крысы
 	for _, model in ipairs(CollectionService:GetTagged("Rat")) do

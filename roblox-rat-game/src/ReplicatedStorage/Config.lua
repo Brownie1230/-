@@ -7,6 +7,7 @@ local Config = {}
 Config.MinPlayers = 1 -- сколько игроков нужно для старта (1 = можно тестировать одному)
 Config.HumanChefMinPlayers = 3 -- если игроков меньше, поваром будет ИИ-робот
 Config.LobbyTime = 20 -- секунд в лобби перед раундом
+Config.FallRescueY = -25 -- если игрок упал ниже этой высоты, его возвращает назад
 Config.IntroTime = 4 -- обратный отсчёт перед стартом
 Config.RoundTime = 300 -- длина раунда (5 минут)
 Config.EndTime = 10 -- экран результатов

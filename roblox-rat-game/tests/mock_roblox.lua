@@ -470,7 +470,13 @@ local Color3 = {
 		checkNum(h, "Color3.fromHSV")
 		checkNum(s, "Color3.fromHSV")
 		checkNum(v, "Color3.fromHSV")
-		return c3(v, v * (1 - s), v * (1 - s * h))
+		-- настоящий перевод HSV → RGB
+		h = (h % 1) * 6
+		local i = math.floor(h)
+		local f = h - i
+		local p, q, t = v * (1 - s), v * (1 - s * f), v * (1 - s * (1 - f))
+		local rgb = ({ { v, t, p }, { q, v, p }, { p, v, t }, { p, q, v }, { t, p, v }, { v, p, q } })[i % 6 + 1]
+		return c3(rgb[1], rgb[2], rgb[3])
 	end,
 }
 
