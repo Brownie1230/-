@@ -130,6 +130,17 @@ HATS.crown = function(add, V, AT)
 	add(V(0.16, 0.16, 0.16), AT(0, 0.17, -0.5), Color3.fromRGB(230, 30, 60), Enum.PartType.Ball, Enum.Material.Neon)
 end
 
+HATS.vipcrown = function(add, V, AT)
+	local gold = Color3.fromRGB(255, 205, 50)
+	add(V(0.35, 1.15, 1.15), AT(0, 0.17, 0) * VERT, gold, Enum.PartType.Cylinder, Enum.Material.Metal)
+	for i = 0, 7 do
+		local a = i * math.pi / 4
+		add(V(0.18, 0.55, 0.18), CFrame.Angles(0, a, 0) * AT(0, 0.55, -0.5), gold, nil, Enum.Material.Metal)
+		add(V(0.14, 0.14, 0.14), CFrame.Angles(0, a, 0) * AT(0, 0.88, -0.5), Color3.fromRGB(255, 255, 255), Enum.PartType.Ball, Enum.Material.Neon)
+	end
+	add(V(0.24, 0.24, 0.24), AT(0, 0.2, -0.58), Color3.fromRGB(60, 140, 255), Enum.PartType.Ball, Enum.Material.Neon)
+end
+
 HATS.halo = function(add, V, AT)
 	local glow = Color3.fromRGB(255, 240, 120)
 	for i = 0, 9 do
@@ -251,6 +262,12 @@ function RatBuilder.build(player, cframe)
 	hum.JumpPower = Config.RatJumpPower
 	hum.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
 	hum.DisplayName = player.DisplayName
+	if player:GetAttribute("VIP") then
+		hum.DisplayName = "👑 " .. player.DisplayName
+		local sp = Instance.new("Sparkles")
+		sp.SparkleColor = Color3.fromRGB(255, 215, 80)
+		sp.Parent = body
+	end
 	hum.NameDisplayDistance = 40
 	hum.Parent = model
 

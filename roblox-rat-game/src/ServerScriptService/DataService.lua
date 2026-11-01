@@ -19,7 +19,7 @@ local COINS_NAME = "🧀 Cheese"
 local WINS_NAME = "🏆 Wins"
 
 local function defaultData()
-	return { Coins = 0, Wins = 0, Owned = { none = true, cap = true }, Hat = "cap" }
+	return { Coins = 0, Wins = 0, Owned = { none = true, cap = true }, Hat = "cap", LastDaily = 0, Streak = 0, Purchases = {} }
 end
 
 local function ownedString(data)
@@ -74,14 +74,37 @@ function DataService.load(player)
 			if type(saved.Hat) == "string" and data.Owned[saved.Hat] then
 				data.Hat = saved.Hat
 			end
+			data.LastDaily = tonumber(saved.LastDaily) or 0
+			data.Streak = tonumber(saved.Streak) or 0
+			if type(saved.Purchases) == "table" then
+				for id, v in pairs(saved.Purchases) do
+					if v then
+						data.Purchases[tostring(id)] = true
+					end
+				end
+			end
 		elseif not ok then
 			warn("[Data] Не удалось загрузить данные (в Studio включи доступ к API):", saved)
 		end
 	end
 	if not player.Parent then
-		return
+		return 0, 0
 	end
 	cache[player] = data
+
+	-- ежедневный бонус (дни подряд дают больше)
+	local today = math.floor(os.time() / 86400)
+	local bonus = 0
+	if today > data.LastDaily then
+		if today == data.LastDaily + 1 then
+			data.Streak = math.min(data.Streak + 1, Config.DailyBonusMaxDays)
+		else
+			data.Streak = 1
+		end
+		data.LastDaily = today
+		bonus = Config.DailyBonusBase + (data.Streak - 1) * Config.DailyBonusStep
+		data.Coins = data.Coins + bonus
+	end
 
 	local stats = Instance.new("Folder")
 	stats.Name = "leaderstats"
@@ -94,6 +117,7 @@ function DataService.load(player)
 	stats.Parent = player
 
 	publish(player)
+	return bonus, data.Streak
 end
 
 function DataService.save(player)
@@ -126,6 +150,42 @@ function DataService.addWin(player)
 	end
 end
 
+-- Выдать шапку (например, VIP-корону за покупку пропуска)
+function DataService.grantHat(player, hatId)
+	local data = cache[player]
+	if data and not data.Owned[hatId] then
+		data.Owned[hatId] = true
+		publish(player)
+	end
+end
+
+-- Выдать сыр за покупку. Один и тот же чек не засчитывается дважды.
+function DataService.grantPurchase(player, purchaseId, coins)
+	local data = cache[player]
+	if not data then
+		return false
+	end
+	purchaseId = tostring(purchaseId)
+	if data.Purchases[purchaseId] then
+		return true
+	end
+	data.Purchases[purchaseId] = true
+	data.Coins = data.Coins + coins
+	publish(player)
+	if store then
+		local ok = pcall(function()
+			store:SetAsync("player_" .. player.UserId, data)
+		end)
+		if not ok then
+			data.Purchases[purchaseId] = nil
+			data.Coins = data.Coins - coins
+			publish(player)
+			return false
+		end
+	end
+	return true
+end
+
 function DataService.getHat(player)
 	local data = cache[player]
 	if data then
@@ -144,6 +204,10 @@ local function onShop(player, action, hatId)
 		return
 	end
 
+	if hat.VipOnly and not data.Owned[hatId] then
+		ctx.notifyPlayer(player, "info", "vip_only")
+		return
+	end
 	if action == "buy" and not data.Owned[hatId] then
 		if data.Coins < hat.Price then
 			ctx.notifyPlayer(player, "bad", "no_cheese")

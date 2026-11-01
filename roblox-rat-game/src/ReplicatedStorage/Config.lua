@@ -69,6 +69,7 @@ Config.Rewards = {
 	RatWin = 25,
 	ChefWin = 30,
 	Participation = 5,
+	Golden = 15,
 }
 -- Названия наград на двух языках — в модуле Locale (reward_...)
 
@@ -85,6 +86,7 @@ Config.Hats = {
 	{ Id = "pirate", Name = "Пиратская шляпа", NameEn = "Pirate hat", Icon = "🏴‍☠️", Price = 180 },
 	{ Id = "crown", Name = "Корона", NameEn = "Crown", Icon = "👑", Price = 250 },
 	{ Id = "halo", Name = "Нимб", NameEn = "Halo", Icon = "😇", Price = 300 },
+	{ Id = "vipcrown", Name = "Золотая VIP-корона", NameEn = "Golden VIP crown", Icon = "👑", Price = 0, VipOnly = true },
 }
 
 function Config.getHat(id)
@@ -95,6 +97,27 @@ function Config.getHat(id)
 	end
 	return nil
 end
+
+-- ===== Донат (Robux) =====
+-- 1) create.roblox.com → твоя игра → Monetization → Passes / Developer Products → Create
+-- 2) Скопируй ID товара и вставь сюда вместо 0. Пока стоит 0, кнопка покажет «скоро».
+Config.GamePasses = {
+	VIP = 0, -- 👑 VIP: золотая корона, ×2 сыра, блеск
+	DoubleCheese = 0, -- 🧀 ×2 сыра навсегда
+}
+Config.GamePassPrices = { VIP = 199, DoubleCheese = 99 } -- только для надписи на кнопке (цену ставишь в Creator Hub)
+Config.Products = {
+	{ Key = "Cheese500", Id = 0, Coins = 500, Price = 25 },
+	{ Key = "Cheese2500", Id = 0, Coins = 2500, Price = 99 },
+	{ Key = "Cheese10000", Id = 0, Coins = 10000, Price = 299 },
+}
+
+-- ===== Бонусы =====
+Config.DailyBonusBase = 25 -- ежедневный бонус в первый день
+Config.DailyBonusStep = 25 -- +25 за каждый следующий день подряд
+Config.DailyBonusMaxDays = 7
+Config.GoldenCheeseInterval = 40 -- как часто появляется золотой сыр (сек)
+Config.GoldenCheeseLifetime = 20 -- сколько он лежит
 
 -- ===== Звуки =====
 -- Можно заменить на любой звук из Toolbox: правый клик по звуку → Copy Asset ID,

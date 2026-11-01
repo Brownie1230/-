@@ -634,6 +634,7 @@ local enumLists = {
 	PlaybackState = "Begin Delayed Playing Paused Completed Cancelled",
 	ScrollingDirection = "X Y XY",
 	ProximityPromptStyle = "Default Custom",
+	ProductPurchaseDecision = "NotProcessedYet PurchaseGranted",
 }
 local enumItems = {}
 local EnumItemMT = { __type = "EnumItem" }
@@ -1884,6 +1885,7 @@ M.game = game
 local workspace = service("Workspace", "Workspace")
 M.workspace = workspace
 local Players = service("Players", "Players")
+ClassMethods.Players = ClassMethods.Players or {}
 M.Players = Players
 local ReplicatedStorage = service("ReplicatedStorage")
 local ServerScriptService = service("ServerScriptService")
@@ -1926,6 +1928,14 @@ ClassMethods.Players = {
 			end
 		end
 		return list
+	end,
+	GetPlayerByUserId = function(ps, id)
+		for _, c in ipairs(D[ps].children) do
+			if D[c].class == "Player" and D[c].props.UserId == id then
+				return c
+			end
+		end
+		return nil
 	end,
 	GetPlayerFromCharacter = function(ps, model)
 		if model == nil then
@@ -2203,6 +2213,59 @@ plainService("TweenService", {
 	end,
 })
 
+-- MarketplaceService: покупки
+M.ownedPasses = {} -- [userId] = { [passId] = true }
+M.prompts = {}
+M.passPurchaseFinished = newSignal("PromptGamePassPurchaseFinished")
+do
+	local mps = {}
+	local members = {
+		UserOwnsGamePassAsync = function(_, userId, passId)
+			if type(userId) ~= "number" or type(passId) ~= "number" then
+				error("UserOwnsGamePassAsync expects numbers", 2)
+			end
+			task.wait(0.05)
+			return (M.ownedPasses[userId] or {})[passId] == true
+		end,
+		PromptGamePassPurchase = function(_, player, id)
+			if typeof(player) ~= "Instance" or type(id) ~= "number" then
+				error("PromptGamePassPurchase bad args", 2)
+			end
+			table.insert(M.prompts, { kind = "pass", player = player, id = id })
+		end,
+		PromptProductPurchase = function(_, player, id)
+			if typeof(player) ~= "Instance" or type(id) ~= "number" then
+				error("PromptProductPurchase bad args", 2)
+			end
+			table.insert(M.prompts, { kind = "product", player = player, id = id })
+		end,
+		PromptGamePassPurchaseFinished = M.passPurchaseFinished,
+	}
+	setmetatable(mps, {
+		__type = "Instance",
+		__index = function(_, k)
+			if k == "ProcessReceipt" then
+				return M.processReceipt
+			end
+			local v = members[k]
+			if v == nil then
+				error(k .. " is not a valid member of MarketplaceService", 2)
+			end
+			return v
+		end,
+		__newindex = function(_, k, v)
+			if k ~= "ProcessReceipt" then
+				error("cannot set " .. k .. " on MarketplaceService", 2)
+			end
+			if type(v) ~= "function" then
+				error("ProcessReceipt must be a function", 2)
+			end
+			M.processReceipt = v
+		end,
+	})
+	services.MarketplaceService = mps
+end
+
 plainService("Debris", {
 	AddItem = function(_, inst, t)
 		task.delay(t or 10, function()
@@ -2305,7 +2368,7 @@ local osx = {
 		return now
 	end,
 	time = function()
-		return math.floor(now)
+		return 1793000000 + math.floor(now) -- «настоящая» дата, ноябрь 2026
 	end,
 	date = os.date,
 }

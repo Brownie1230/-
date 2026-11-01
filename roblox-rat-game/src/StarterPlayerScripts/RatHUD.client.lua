@@ -348,45 +348,95 @@ chefButton.Activated:Connect(function()
 	refreshChefButton()
 end)
 
--- ===== Магазин шапок =====
+local addFeedLocal -- объявлена ниже, после ленты сообщений
+
+-- ===== Магазин: вкладки «Шапки» и «Донат» =====
 local shop = panel(gui, {
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Position = UDim2.fromScale(0.5, 0.5),
-	Size = UDim2.fromOffset(560, 420),
+	Size = UDim2.fromOffset(580, 460),
 	Visible = false,
 	ZIndex = 10,
 })
-local shopTitle = text(shop, { Position = UDim2.fromOffset(16, 10), Size = UDim2.new(1, -200, 0, 40), Text = "", TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 10 })
-local shopCoins = text(shop, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -64, 0, 14), Size = UDim2.fromOffset(120, 32), TextColor3 = YELLOW, ZIndex = 10, Text = "" })
+local shopCoins = text(shop, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -64, 0, 14), Size = UDim2.fromOffset(130, 32), TextColor3 = YELLOW, ZIndex = 10, Text = "" })
 local closeShop = button(shop, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10), Size = UDim2.fromOffset(42, 42), Text = "✕", ZIndex = 10 }, RED)
-local shopList = make("ScrollingFrame", shop, {
-	Position = UDim2.fromOffset(12, 62),
-	Size = UDim2.new(1, -24, 1, -74),
-	BackgroundTransparency = 1,
-	BorderSizePixel = 0,
-	ScrollBarThickness = 6,
-	AutomaticCanvasSize = Enum.AutomaticSize.Y,
-	CanvasSize = UDim2.new(0, 0, 0, 0),
-	ZIndex = 10,
-})
-make("UIGridLayout", shopList, {
-	CellSize = UDim2.fromOffset(160, 130),
-	CellPadding = UDim2.fromOffset(10, 10),
-	SortOrder = Enum.SortOrder.LayoutOrder,
-})
-local shopCards = {}
-for i, hat in ipairs(Config.Hats) do
-	local card = make("Frame", shopList, {
-		LayoutOrder = i,
+local tabHats = button(shop, { Position = UDim2.fromOffset(14, 12), Size = UDim2.fromOffset(170, 42), Text = "", ZIndex = 10 }, Color3.fromRGB(180, 130, 255))
+local tabRobux = button(shop, { Position = UDim2.fromOffset(194, 12), Size = UDim2.fromOffset(170, 42), Text = "", ZIndex = 10 }, Color3.fromRGB(80, 200, 255))
+local shopTab = "hats"
+
+local function makeList()
+	local list = make("ScrollingFrame", shop, {
+		Position = UDim2.fromOffset(12, 66),
+		Size = UDim2.new(1, -24, 1, -78),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 6,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(0, 0, 0, 0),
+		ZIndex = 10,
+	})
+	make("UIGridLayout", list, {
+		CellSize = UDim2.fromOffset(170, 140),
+		CellPadding = UDim2.fromOffset(10, 10),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+	})
+	return list
+end
+local shopList = makeList()
+local robuxList = makeList()
+robuxList.Visible = false
+
+local function card(list, order, icon, gold)
+	local c = make("Frame", list, {
+		LayoutOrder = order,
 		BackgroundColor3 = Color3.fromRGB(50, 40, 60),
 		BorderSizePixel = 0,
 		ZIndex = 10,
 	})
-	corner(card, 10)
-	text(card, { Position = UDim2.fromOffset(0, 6), Size = UDim2.new(1, 0, 0, 44), Text = hat.Icon, ZIndex = 10 })
-	local nameLabel = text(card, { Position = UDim2.fromOffset(6, 52), Size = UDim2.new(1, -12, 0, 24), Text = hat.Name, ZIndex = 10 })
-	local buy = button(card, { Position = UDim2.new(0, 10, 1, -44), Size = UDim2.new(1, -20, 0, 36), Text = "", ZIndex = 10 })
-	shopCards[hat.Id] = { button = buy, hat = hat, nameLabel = nameLabel }
+	corner(c, 10)
+	if gold then
+		stroke(c, YELLOW, 3)
+	end
+	text(c, { Position = UDim2.fromOffset(0, 4), Size = UDim2.new(1, 0, 0, 40), Text = icon, ZIndex = 10 })
+	local title = text(c, { Position = UDim2.fromOffset(6, 46), Size = UDim2.new(1, -12, 0, 24), Text = "", ZIndex = 10 })
+	local desc = text(c, { Position = UDim2.fromOffset(6, 70), Size = UDim2.new(1, -12, 0, 18), Font = Enum.Font.GothamMedium, TextColor3 = Color3.fromRGB(210, 200, 220), Text = "", ZIndex = 10 })
+	local b = button(c, { Position = UDim2.new(0, 10, 1, -44), Size = UDim2.new(1, -20, 0, 36), Text = "", ZIndex = 10 })
+	return title, desc, b
+end
+
+-- шапки за сыр
+local shopCards = {}
+for i, hat in ipairs(Config.Hats) do
+	local title, desc, buy = card(shopList, i, hat.Icon, hat.VipOnly)
+	desc.Visible = false
+	shopCards[hat.Id] = { button = buy, hat = hat, nameLabel = title }
+end
+
+-- донат за Robux
+local MarketplaceService = game:GetService("MarketplaceService")
+local robuxCards = {}
+local function addRobuxCard(order, icon, kind, key, id, price, gold)
+	local title, desc, b = card(robuxList, order, icon, gold)
+	local info = { kind = kind, key = key, id = id, price = price, title = title, desc = desc, button = b }
+	table.insert(robuxCards, info)
+	b.Activated:Connect(function()
+		if info.id <= 0 then
+			addFeedLocal(L("not_configured"))
+			return
+		end
+		if info.kind == "pass" then
+			MarketplaceService:PromptGamePassPurchase(player, info.id)
+		else
+			MarketplaceService:PromptProductPurchase(player, info.id)
+		end
+	end)
+	return info
+end
+addRobuxCard(1, "👑", "pass", "VIP", Config.GamePasses.VIP, Config.GamePassPrices.VIP, true)
+addRobuxCard(2, "🧀", "pass", "DoubleCheese", Config.GamePasses.DoubleCheese, Config.GamePassPrices.DoubleCheese, false)
+for i, prod in ipairs(Config.Products) do
+	local info = addRobuxCard(2 + i, "💰", "product", prod.Key, prod.Id, prod.Price, false)
+	info.coins = prod.Coins
 end
 
 local function ownedSet()
@@ -402,6 +452,12 @@ local function refreshShop()
 	local coins = player:GetAttribute("Coins") or 0
 	local current = player:GetAttribute("Hat")
 	shopCoins.Text = "🧀 " .. coins
+	tabHats.Text = L("tab_hats")
+	tabRobux.Text = L("tab_robux")
+	tabHats.BackgroundTransparency = shopTab == "hats" and 0 or 0.5
+	tabRobux.BackgroundTransparency = shopTab == "robux" and 0 or 0.5
+	shopList.Visible = shopTab == "hats"
+	robuxList.Visible = shopTab == "robux"
 	for id, info in pairs(shopCards) do
 		local b = info.button
 		info.nameLabel.Text = Locale.hatName(lang(), info.hat)
@@ -411,6 +467,9 @@ local function refreshShop()
 		elseif owned[id] then
 			b.Text = L("equip")
 			b.BackgroundColor3 = GREEN
+		elseif info.hat.VipOnly then
+			b.Text = L("vip_only")
+			b.BackgroundColor3 = Color3.fromRGB(255, 200, 60)
 		elseif coins >= info.hat.Price then
 			b.Text = L("buy", info.hat.Price)
 			b.BackgroundColor3 = YELLOW
@@ -419,17 +478,51 @@ local function refreshShop()
 			b.BackgroundColor3 = Color3.fromRGB(90, 80, 95)
 		end
 	end
+	for _, info in ipairs(robuxCards) do
+		local b = info.button
+		if info.key == "VIP" then
+			info.title.Text = L("vip_title")
+			info.desc.Text = L("vip_desc")
+		elseif info.key == "DoubleCheese" then
+			info.title.Text = L("double_title")
+			info.desc.Text = L("double_desc")
+		else
+			info.title.Text = L("pack_title", info.coins)
+			info.desc.Text = L("pack_desc")
+		end
+		if info.kind == "pass" and player:GetAttribute(info.key) then
+			b.Text = L("owned")
+			b.BackgroundColor3 = Color3.fromRGB(120, 120, 130)
+		elseif info.id <= 0 then
+			b.Text = L("soon")
+			b.BackgroundColor3 = Color3.fromRGB(90, 80, 95)
+		else
+			b.Text = "R$ " .. info.price
+			b.BackgroundColor3 = GREEN
+		end
+	end
 end
 
 for id, info in pairs(shopCards) do
 	info.button.Activated:Connect(function()
 		if ownedSet()[id] then
 			shopEvent:FireServer("equip", id)
+		elseif info.hat.VipOnly then
+			shopTab = "robux"
+			refreshShop()
 		else
 			shopEvent:FireServer("buy", id)
 		end
 	end)
 end
+tabHats.Activated:Connect(function()
+	shopTab = "hats"
+	refreshShop()
+end)
+tabRobux.Activated:Connect(function()
+	shopTab = "robux"
+	refreshShop()
+end)
 shopButton.Activated:Connect(function()
 	shop.Visible = not shop.Visible
 	if shop.Visible then
@@ -545,6 +638,10 @@ local function addFeed(msg, kind)
 			item:Destroy()
 		end
 	end)
+end
+
+addFeedLocal = function(msg)
+	addFeed(msg, "info")
 end
 
 notifyEvent.OnClientEvent:Connect(function(msg, kind)
@@ -869,7 +966,6 @@ RunService.Heartbeat:Connect(function(dt)
 	hungerCaption.Text = L("hunger")
 	staminaCaption.Text = L("stamina")
 	shopButton.Text = L("shop_button")
-	shopTitle.Text = L("shop_title")
 	refreshChefButton()
 	hungerBg.Visible = r == "Rat"
 	staminaBg.Visible = r == "Rat" or r == "Chef"

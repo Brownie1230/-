@@ -174,6 +174,12 @@ fxEvent.OnClientEvent:Connect(function(kind, a, b)
 		playUI(S.Coin, 0.5, 1.3)
 	elseif kind == "hole" then
 		burst(a, ColorSequence.new(Color3.fromRGB(80, 70, 60)), 15, 5, 0.3)
+	elseif kind == "purchase" then
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if root then
+			burst(root.Position + Vector3.new(0, 3, 0), ColorSequence.new(Color3.fromRGB(255, 215, 60), Color3.fromRGB(255, 255, 200)), 80, 16, 0.45)
+		end
+		playUI(S.Victory, 0.7, 1.2)
 	elseif kind == "results" and type(a) == "table" then
 		if a.won then
 			playUI(S.Victory, 0.8, 1)
@@ -387,6 +393,14 @@ RunService.RenderStepped:Connect(function(dt)
 		if glow then
 			glow.Enabled = c.Transparency < 1
 		end
+	end
+
+	-- золотой сыр крутится и подпрыгивает
+	for _, g in ipairs(CollectionService:GetTagged("GoldenCheese")) do
+		if not cheeseBase[g] then
+			cheeseBase[g] = g.CFrame
+		end
+		g.CFrame = cheeseBase[g] * CFrame.new(0, 0.3 + math.sin(t * 3) * 0.3, 0) * CFrame.Angles(0, t * 3, 0)
 	end
 
 	-- свечи мерцают

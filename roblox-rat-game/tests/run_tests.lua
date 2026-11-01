@@ -30,6 +30,7 @@ local files = {
 	"ServerScriptService/ChefService.lua",
 	"ServerScriptService/ChefAI.lua",
 	"ServerScriptService/TestMapBuilder.lua",
+	"ServerScriptService/MonetizationService.lua",
 	"StarterPlayerScripts/RatHUD.client.lua",
 	"StarterPlayerScripts/Effects.client.lua",
 	"StarterPlayerScripts/MiniGames.client.lua",
@@ -48,7 +49,7 @@ end
 M.addScript("ModuleScript", "Config", M.ReplicatedStorage, ROOT .. "ReplicatedStorage/Config.lua")
 M.addScript("ModuleScript", "Locale", M.ReplicatedStorage, ROOT .. "ReplicatedStorage/Locale.lua")
 local modules = {}
-for _, n in ipairs({ "RatBuilder", "DataService", "SabotageService", "ChefService", "ChefAI", "TestMapBuilder" }) do
+for _, n in ipairs({ "RatBuilder", "DataService", "SabotageService", "ChefService", "ChefAI", "TestMapBuilder", "MonetizationService" }) do
 	modules[n] = M.addScript("ModuleScript", n, M.ServerScriptService, ROOT .. "ServerScriptService/" .. n .. ".lua")
 end
 local gm = M.addScript("Script", "GameManager", M.ServerScriptService, ROOT .. "ServerScriptService/GameManager.server.lua")
@@ -58,6 +59,11 @@ for _, n in ipairs({ "RatHUD", "Effects", "MiniGames" }) do
 end
 
 local Vector3, CFrame, Enum = M.Vector3, M.CFrame, M.Enum
+-- донат: настраиваем ID товаров (как будто создали их в Creator Hub)
+local ConfigMod = M.require(M.ReplicatedStorage.Config)
+ConfigMod.GamePasses.VIP = 111
+ConfigMod.GamePasses.DoubleCheese = 222
+ConfigMod.Products[1].Id = 501
 local CS = M.CollectionService
 local RS = M.ReplicatedStorage
 local getSignal = M.getSignal
@@ -299,7 +305,9 @@ M.runScript(gm, nil)
 advance(1)
 check(M.workspace:FindFirstChild("Map") ~= nil, "map built")
 check(RS:FindFirstChild("Remotes") ~= nil, "remotes created")
-check(#CS:GetTagged("Sabotage") == 10, "10 stations, got " .. #CS:GetTagged("Sabotage"))
+check(#CS:GetTagged("Sabotage") == 13, "13 stations, got " .. #CS:GetTagged("Sabotage"))
+check(#CS:GetTagged("GoldenSpot") >= 8, "golden spots")
+check(#CS:GetTagged("RatHole") == 8, "4 rat hole pairs")
 check(#CS:GetTagged("Cage") == 1, "1 cage")
 check(#CS:GetTagged("RatSpawn") >= 1 and #CS:GetTagged("ChefSpawn") == 1 and #CS:GetTagged("LobbySpawn") >= 1, "spawns")
 check(#CS:GetTagged("AlarmLight") >= 1, "alarm lights")
@@ -319,7 +327,11 @@ end
 local alice = join("Alice", "ru-ru")
 advance(1)
 check(alice:GetAttribute("Role") == "Lobby", "alice in lobby")
-check(alice:GetAttribute("Coins") == 0, "alice coins 0")
+check(alice:GetAttribute("Coins") == 25, "alice got daily bonus 25, coins=" .. tostring(alice:GetAttribute("Coins")))
+check(guiText(alice, function(d)
+	return d.Text:find("Ежедневный бонус") ~= nil
+end) ~= nil, "daily bonus message")
+check(alice:GetAttribute("CoinMult") == 1, "no passes -> mult 1")
 check(alice:FindFirstChild("leaderstats") ~= nil, "leaderstats")
 check(alice.Character ~= nil and alice.Character:FindFirstChild("Hat") ~= nil, "lobby hat on human")
 check(guiText(alice, function(d)
@@ -479,6 +491,7 @@ check(station("Fridge"):GetAttribute("Broken") == false, "stations reset")
 -- 4. Раунд 2: трое, повар — игрок
 ------------------------------------------------------------------------
 local bob = join("Bob", "en-us")
+M.ownedPasses[1003] = { [111] = true } -- у Кары есть VIP
 local cara = join("Cara", "ru-ru")
 advance(1)
 M.runAs(bob, function()
@@ -500,6 +513,11 @@ check(guiText(alice, function(d)
 end) ~= nil, "alice UI in russian")
 check(bob:GetAttribute("BaseSpeed") == 17, "chef speed")
 check(bob.Character:FindFirstChild("ChefHat") ~= nil, "chef hat")
+
+-- VIP у Кары
+check(cara:GetAttribute("VIP") == true and cara:GetAttribute("CoinMult") == 2, "cara VIP mult 2")
+check((cara:GetAttribute("OwnedHats") or ""):find("vipcrown") ~= nil, "cara owns vip crown")
+check(cara.Character:FindFirstChildOfClass("Humanoid").DisplayName:find("👑") ~= nil, "VIP crown in rat name")
 
 -- Боб ловит Кару сачком (Алису отводим подальше, они рядом в гнезде)
 alice.Character:PivotTo(CFrame.new(-10, 1.2, -30))
@@ -617,6 +635,7 @@ end) ~= nil, "victory panel")
 print("Coins: Alice " .. alice:GetAttribute("Coins") .. ", Bob " .. bob:GetAttribute("Coins") .. ", Cara " .. cara:GetAttribute("Coins"))
 
 ------------------------------------------------------------------------
+-- золотой сыр уже должен был появиться за раунд (через 25 сек) — проверим в 3-м раунде
 -- 5. Магазин с монетками
 ------------------------------------------------------------------------
 check(waitUntil(function()
@@ -624,6 +643,57 @@ check(waitUntil(function()
 end, 12), "lobby after round 2")
 advance(1)
 local DataService = M.require(modules.DataService)
+-- покупка пачки сыра за Robux
+local before500 = alice:GetAttribute("Coins")
+local decision = M.runAs(nil, function() end)
+local res1, res2
+M.runAs(nil, function()
+	res1 = M.processReceipt({ PlayerId = alice.UserId, ProductId = 501, PurchaseId = "receipt-1" })
+	res2 = M.processReceipt({ PlayerId = alice.UserId, ProductId = 501, PurchaseId = "receipt-1" })
+end)
+advance(0.5)
+if DS_FAIL then
+	-- сохранение недоступно: покупку не засчитываем, Roblox повторит позже (Robux не пропадут)
+	check(res1 == Enum.ProductPurchaseDecision.NotProcessedYet, "receipt deferred when saving fails")
+	check(alice:GetAttribute("Coins") == before500, "no coins when purchase not saved")
+else
+	check(res1 == Enum.ProductPurchaseDecision.PurchaseGranted, "receipt granted")
+	check(res2 == Enum.ProductPurchaseDecision.PurchaseGranted, "duplicate receipt acknowledged")
+	check(alice:GetAttribute("Coins") == before500 + 500, "500 cheese added once, got " .. tostring(alice:GetAttribute("Coins") - before500))
+end
+local res3
+M.runAs(nil, function()
+	res3 = M.processReceipt({ PlayerId = alice.UserId, ProductId = 999, PurchaseId = "receipt-2" })
+end)
+check(res3 == Enum.ProductPurchaseDecision.NotProcessedYet, "unknown product not granted")
+-- покупка пропуска ×2 прямо в игре
+M.passPurchaseFinished:Fire(alice, 222, true)
+advance(0.2)
+check(alice:GetAttribute("CoinMult") == 2, "double cheese pass bought in game")
+-- кнопка VIP в магазине
+click(guiText(alice, function(d)
+	return d:IsA("TextButton") and d.Text == "💎 Магазин"
+end))
+advance(0.6)
+local vipBtn = guiText(alice, function(d)
+	return d:IsA("TextButton") and d.Text == "R$ 199"
+end)
+check(vipBtn ~= nil, "VIP buy button in robux tab")
+if vipBtn then
+	click(vipBtn)
+	advance(0.1)
+	check(#M.prompts >= 1 and M.prompts[#M.prompts].id == 111, "VIP purchase prompt opened")
+end
+local soonBtn = guiText(alice, function(d)
+	return d:IsA("TextButton") and d.Text == "Скоро"
+end)
+check(soonBtn ~= nil, "unconfigured product shows Скоро")
+-- VIP-корону нельзя купить за сыр
+M.runAs(alice, function()
+	shopEvent:FireServer("buy", "vipcrown")
+end)
+advance(0.3)
+check(not alice:GetAttribute("OwnedHats"):find("vipcrown"), "vip crown not buyable with cheese")
 M.runAs(nil, function()
 	DataService.addCoins(alice, 200)
 end)
@@ -652,6 +722,24 @@ for _, p in ipairs({ alice, bob, cara }) do
 	end
 end
 check(chefPlayer ~= nil, "round 3 has human chef")
+-- золотой сыр появляется через ~25 сек раунда
+check(waitUntil(function()
+	return M.workspace:FindFirstChild("GoldenCheese") ~= nil
+end, 30), "golden cheese spawned")
+local gold = M.workspace:FindFirstChild("GoldenCheese")
+local goldRat = nil
+for _, p in ipairs({ alice, bob, cara }) do
+	if p:GetAttribute("Role") == "Rat" and not p:GetAttribute("Caught") then
+		goldRat = p
+	end
+end
+if gold and goldRat then
+	local c0g = goldRat:GetAttribute("Coins")
+	getSignal(gold, "Touched"):Fire(rootOf(goldRat))
+	advance(0.2)
+	check(goldRat:GetAttribute("Coins") == c0g + 15 * goldRat:GetAttribute("CoinMult"), "golden cheese reward")
+	check(M.workspace:FindFirstChild("GoldenCheese") == nil, "golden cheese removed")
+end
 check(alice:GetAttribute("Role") ~= "Rat" or alice.Character:FindFirstChild("Hat") ~= nil, "crown on rat")
 if chefPlayer then
 	M.removePlayer(chefPlayer)
@@ -676,11 +764,11 @@ local dan = join("Dan")
 advance(1)
 check(dan.UserId == 1004, "dan id")
 if not DS_FAIL then
-	check(dan:GetAttribute("Coins") == 77, "dan coins loaded")
+	check(dan:GetAttribute("Coins") == 77 + 25, "dan coins loaded + daily, got " .. tostring(dan:GetAttribute("Coins")))
 	check(dan:GetAttribute("Wins") == 3, "dan wins loaded")
 	check(dan:GetAttribute("Hat") == "halo", "dan hat loaded")
 	check(not dan:GetAttribute("OwnedHats"):find("hacked"), "unknown hat filtered")
-	check(dan.leaderstats["🧀 Cheese"].Value == 77, "leaderstats coins")
+	check(dan.leaderstats["🧀 Cheese"].Value == 102, "leaderstats coins")
 end
 advance(30)
 

@@ -47,6 +47,7 @@ local SabotageService = needModule("SabotageService")
 local ChefService = needModule("ChefService")
 local ChefAI = needModule("ChefAI")
 local TestMapBuilder = needModule("TestMapBuilder")
+local MonetizationService = needModule("MonetizationService")
 print("✅ Все скрипты найдены, игра запускается!")
 
 -- Общее состояние игры видно всем игрокам через атрибуты
@@ -64,6 +65,8 @@ local winner, winReason = nil, nil
 local alarmOn = false
 local roundCoins = {}
 local lastSqueak = {}
+local goldenCheese = nil
+local nextGolden = 0
 
 local function setState(s)
 	state = s
@@ -152,9 +155,15 @@ local function reward(player, kind)
 	if amount <= 0 or not player.Parent then
 		return
 	end
+	local mult = MonetizationService.coinMultiplier(player)
+	amount = amount * mult
 	DataService.addCoins(player, amount)
 	roundCoins[player] = (roundCoins[player] or 0) + amount
-	fxEvent:FireClient(player, "coins", amount, Locale.forPlayer(player, "reward_" .. kind))
+	local label = Locale.forPlayer(player, "reward_" .. kind)
+	if mult > 1 then
+		label = label .. " (×" .. mult .. ")"
+	end
+	fxEvent:FireClient(player, "coins", amount, label)
 end
 
 local function endRound(who, reason)
@@ -212,7 +221,12 @@ local function refreshHat(player)
 	end
 end
 
+local function fxPlayer(player, kind, a, b)
+	fxEvent:FireClient(player, kind, a, b)
+end
+
 local ctx = {
+	fxPlayer = fxPlayer,
 	notifyAll = notifyAll,
 	notifyPlayer = notifyPlayer,
 	fxAll = fxAll,
@@ -233,6 +247,7 @@ local ctx = {
 	end,
 }
 DataService.init(ctx)
+MonetizationService.init(ctx, DataService)
 SabotageService.init(ctx)
 ChefService.init(ctx)
 ChefAI.init(ctx, SabotageService, ChefService)
@@ -392,7 +407,10 @@ local function onPlayerAdded(player)
 		player:SetAttribute("Role", "Lobby")
 	end
 	player:SetAttribute("Score", 0)
-	DataService.load(player)
+	local bonus, streak = DataService.load(player)
+	if player.Parent then
+		MonetizationService.load(player)
+	end
 	if not player.Parent then
 		return
 	end
@@ -400,6 +418,10 @@ local function onPlayerAdded(player)
 		notifyAll("info", "join_rats", player.DisplayName)
 	end
 	spawnPlayer(player)
+	if bonus and bonus > 0 then
+		notifyPlayer(player, "good", "daily", bonus, streak)
+		fxPlayer(player, "coins", bonus, "🎁")
+	end
 end
 Players.PlayerAdded:Connect(onPlayerAdded)
 for _, p in ipairs(Players:GetPlayers()) do
@@ -412,6 +434,7 @@ Players.PlayerRemoving:Connect(function(player)
 	roundCoins[player] = nil
 	ChefService.forget(player)
 	SabotageService.forget(player)
+	MonetizationService.forget(player)
 	task.delay(0.5, function()
 		if state == "Playing" then
 			checkAllCaught()
@@ -493,6 +516,63 @@ local function giveResults()
 	end
 end
 
+-- ===== Золотой сыр: редкий бонус, появляется в труднодоступных местах =====
+local function removeGolden()
+	if goldenCheese then
+		goldenCheese:Destroy()
+		goldenCheese = nil
+	end
+end
+
+local function spawnGolden()
+	removeGolden()
+	local spot = getSpawn("GoldenSpot")
+	if not spot then
+		return
+	end
+	local p = Instance.new("Part")
+	p.Name = "GoldenCheese"
+	p.Size = Vector3.new(1.3, 0.9, 1.3)
+	p.CFrame = CFrame.new(spot.Position)
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.Material = Enum.Material.Neon
+	p.Color = Color3.fromRGB(255, 200, 40)
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(255, 210, 80)
+	light.Range = 14
+	light.Brightness = 2
+	light.Parent = p
+	local sp = Instance.new("Sparkles")
+	sp.SparkleColor = Color3.fromRGB(255, 230, 120)
+	sp.Parent = p
+	p:AddTag("GoldenCheese")
+	p.Parent = workspace
+	goldenCheese = p
+	local taken = false
+	p.Touched:Connect(function(hit)
+		local player = Players:GetPlayerFromCharacter(hit.Parent)
+		if taken or not player or player:GetAttribute("Role") ~= "Rat" or player:GetAttribute("Caught") or state ~= "Playing" then
+			return
+		end
+		taken = true
+		local pos = p.Position
+		removeGolden()
+		player:SetAttribute("Hunger", Config.HungerMax)
+		refreshSpeed(player)
+		reward(player, "Golden")
+		fxAll("rescue", pos)
+		notifyAll("good", "golden_found", player.DisplayName, Config.Rewards.Golden * MonetizationService.coinMultiplier(player))
+	end)
+	notifyAll("banner", "golden_spawn")
+	task.delay(Config.GoldenCheeseLifetime, function()
+		if goldenCheese == p then
+			removeGolden()
+		end
+	end)
+end
+
 -- ===== Главный цикл =====
 while true do
 	-- ЛОББИ
@@ -531,6 +611,7 @@ while true do
 
 		-- РАУНД
 		setState("Playing")
+		nextGolden = os.clock() + 25
 		for _, p in ipairs(Players:GetPlayers()) do
 			refreshSpeed(p)
 		end
@@ -549,6 +630,10 @@ while true do
 			timeLeft = timeLeft - 1
 			hungerTick()
 			SabotageService.dripTick()
+			if os.clock() >= nextGolden then
+				nextGolden = os.clock() + Config.GoldenCheeseInterval
+				spawnGolden()
+			end
 			if chef and not chef.Parent then
 				chef = nil
 				ChefAI.start(spawnPoint("ChefSpawn"))
@@ -567,6 +652,7 @@ while true do
 		ReplicatedStorage:SetAttribute("TimeLeft", Config.EndTime)
 		ReplicatedStorage:SetAttribute("Winner", winner)
 		ChefAI.stop()
+		removeGolden()
 		SabotageService.reset()
 		giveResults()
 		for t = Config.EndTime, 1, -1 do

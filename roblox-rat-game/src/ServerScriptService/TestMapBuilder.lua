@@ -442,7 +442,8 @@ function TestMapBuilder.build()
 	wall(-60, -45, 60, -45)
 	wall(-60, 45, 60, 45)
 	wall(-60, -45, -60, 45)
-	wall(60, -45, 60, 45)
+	wall(60, -45, 60, 1) -- дверь в гараж (z 1..9)
+	wall(60, 9, 60, 45, { 40 }) -- лазейка Туалет ↔ Морозилка
 	-- Внутренние стены: проёмы-двери по 8 стадов + крысиные лазейки
 	wall(-30, -45, -30, -34)
 	wall(-30, -26, -30, 1, { -15 }) -- лазейка Кабинет ↔ Кухня
@@ -460,6 +461,7 @@ function TestMapBuilder.build()
 	wall(20, 34, 20, 45, { 40 }) -- лазейка Бар ↔ Туалет
 
 	block("Ceiling", Vector3.new(122, 1, 92), Vector3.new(0, H + 0.5, 0), C.dark)
+	block("Ceiling", Vector3.new(41, 1, 92), Vector3.new(80.5, H + 0.5, 0), C.dark)
 
 	for _, pos in ipairs({ { -45, -25 }, { -45, 20 }, { -10, -30 }, { -10, 0 }, { -5, 30 }, { 40, 30 }, { 25, -30 }, { 45, -30 }, { 35, 0 } }) do
 		lamp(pos[1], pos[2])
@@ -474,7 +476,6 @@ function TestMapBuilder.build()
 	window(Vector3.new(25, 7.5, -45), Vector3.new(0, 0, 1))
 	window(Vector3.new(45, 7.5, -45), Vector3.new(0, 0, 1))
 	window(Vector3.new(60, 7.5, -35), Vector3.new(-1, 0, 0))
-	window(Vector3.new(60, 7.5, 5), Vector3.new(-1, 0, 0))
 	window(Vector3.new(60, 7.5, 35), Vector3.new(-1, 0, 0))
 	window(Vector3.new(12, 7.5, 45), Vector3.new(0, 0, -1))
 	window(Vector3.new(-60, 7.5, -35), Vector3.new(1, 0, 0))
@@ -720,6 +721,85 @@ function TestMapBuilder.build()
 	cheese(15, 8)
 	cheese(54, -40)
 
+
+	-- ---------- ГАРАЖ (новое крыло) ----------
+	floor(60, -45, 100, 15, Color3.fromRGB(95, 95, 100), Enum.Material.Concrete)
+	floor(60, 15, 100, 45, Color3.fromRGB(205, 230, 245), Enum.Material.CeramicTiles)
+	wall(60, -45, 100, -45)
+	wall(60, 45, 100, 45)
+	wall(100, -45, 100, 45)
+	wall(60, 15, 76, 15)
+	wall(84, 15, 100, 15, { 92 }) -- лазейка Гараж ↔ Морозилка
+	label("Гараж", Vector3.new(80, 10, -15), nil, nil, "Garage")
+	lamp(80, -15)
+	lamp(72, -35)
+	alarmLight(98, -43)
+	-- фургон доставки пиццы
+	block("VanBody", Vector3.new(14, 7, 6.5), Vector3.new(84, 4.3, -28), C.white)
+	block("VanStripe", Vector3.new(14.1, 1, 6.6), Vector3.new(84, 3.2, -28), C.red)
+	block("VanCabin", Vector3.new(3.5, 4.5, 6.4), Vector3.new(75.3, 3.05, -28), C.white)
+	decor(block("VanWindow", Vector3.new(0.2, 2, 5.6), Vector3.new(73.5, 4.2, -28), Color3.fromRGB(40, 60, 80), Enum.Material.Glass))
+	sign(Vector3.new(86, 5.6, -24.7), Vector3.new(0, 0, 1), 8, 2.2, "🍕 PIZZA 🍕", C.red, Color3.fromRGB(255, 240, 200))
+	for _, wx in ipairs({ 77, 89 }) do
+		for _, wz in ipairs({ -31.4, -24.6 }) do
+			if not (wx == 77 and wz == -24.6) then
+				local wheel = block("Wheel", Vector3.new(0.9, 2.6, 2.6), CFrame.new(wx, 1.3, wz) * CFrame.Angles(0, math.rad(90), 0), C.black)
+				wheel.Shape = Enum.PartType.Cylinder
+			end
+		end
+	end
+	local tire = station("VanTire", Vector3.new(0.9, 2.6, 2.6), CFrame.new(77, 1.3, -24.6) * CFrame.Angles(0, math.rad(90), 0), C.black, {
+		TaskName = "Проколоть шину фургона",
+		TaskNameEn = "Pop the van's tire",
+		Points = 8,
+		MiniGame = "Mash",
+	})
+	tire.Shape = Enum.PartType.Cylinder
+	smoke(tire, Color3.fromRGB(200, 200, 200), 0.3, 3)
+	crate(Vector3.new(74.5, 1.25, -21.5))
+	crate(Vector3.new(76.5, 3.75, -23))
+	-- коробки с пиццей
+	local boxes = station("PizzaBoxes", Vector3.new(3, 2.4, 3), Vector3.new(70, 1.2, 5), Color3.fromRGB(215, 180, 130), {
+		TaskName = "Рассыпать коробки с пиццей",
+		TaskNameEn = "Knock over the pizza boxes",
+		Points = 8,
+		HoldTime = 2,
+	}, Enum.Material.Cardboard)
+	brokenVisual(boxes, Vector3.new(6, 0.3, 5), Vector3.new(70, 0.35, 0.5), Color3.fromRGB(215, 180, 130), Enum.Material.Cardboard)
+	shelf(97.5, -2, 3, 10, 8, 3)
+	barrel(95, -40)
+	barrel(91.5, -41)
+	decor(block("GarageDoor", Vector3.new(0.4, 9, 12), Vector3.new(99.3, 4.5, -15), Color3.fromRGB(150, 150, 160), Enum.Material.DiamondPlate))
+	cheese(66, -10)
+	cheese(92, 8)
+
+	-- ---------- МОРОЗИЛКА ----------
+	label("Морозилка", Vector3.new(80, 10, 30), nil, nil, "Freezer")
+	lamp(80, 30)
+	local cold = Instance.new("PointLight")
+	cold.Color = Color3.fromRGB(150, 200, 255)
+	cold.Range = 30
+	cold.Brightness = 1.5
+	cold.Parent = ghost(block("ColdLight", Vector3.new(1, 1, 1), Vector3.new(80, 10, 30), C.white))
+	alarmLight(98, 43)
+	shelf(84, 43, 16, 3, 8, 3)
+	for i = 0, 5 do
+		decor(block("IceBlock", Vector3.new(1.6, 1.6, 1.6), Vector3.new(78 + i * 2.4, 3.75, 43), Color3.fromRGB(190, 230, 255), Enum.Material.Glass)).Transparency = 0.3
+	end
+	for i = 0, 3 do
+		decor(cyl("IceCream", 1.2, 1.4, Vector3.new(79 + i * 3, 6.3, 43), Color3.fromHSV(i * 0.2, 0.35, 1)))
+	end
+	local freezer = station("FreezerPanel", Vector3.new(1, 3, 2.5), Vector3.new(99, 4.5, 30), Color3.fromRGB(120, 160, 200), {
+		TaskName = "Разморозить морозилку",
+		TaskNameEn = "Defrost the freezer",
+		Points = 8,
+		MiniGame = "Timing",
+	}, Enum.Material.Metal)
+	smoke(freezer, Color3.fromRGB(220, 240, 255), 0.35, 2)
+	brokenVisual(freezer, Vector3.new(8, 0.1, 6), Vector3.new(93, 0.25, 30), Color3.fromRGB(80, 140, 220), Enum.Material.Glass, 0.35)
+	crate(Vector3.new(97.5, 1.25, 30))
+	cheese(70, 30)
+
 	-- ---------- КРЫСИНЫЕ НОРКИ (телепорты парами) ----------
 	ratHole("1", Vector3.new(-59.5, 1.1, -20), Vector3.new(1, 0, 0)) -- Кабинет
 	ratHole("1", Vector3.new(59.5, 1.1, 25), Vector3.new(-1, 0, 0)) -- Туалет
@@ -727,9 +807,27 @@ function TestMapBuilder.build()
 	ratHole("2", Vector3.new(45, 1.1, -44.5), Vector3.new(0, 0, 1)) -- Зал
 	ratHole("3", Vector3.new(-29.5, 1.1, -38), Vector3.new(1, 0, 0)) -- Кухня
 	ratHole("3", Vector3.new(10, 1.1, 44.5), Vector3.new(0, 0, -1)) -- Бар
+	ratHole("4", Vector3.new(-59.5, 1.1, -40), Vector3.new(1, 0, 0)) -- Кабинет
+	ratHole("4", Vector3.new(99.5, 1.1, -38), Vector3.new(-1, 0, 0)) -- Гараж
+
+	-- ---------- Где может появиться ЗОЛОТОЙ СЫР (чем сложнее добраться, тем лучше) ----------
+	for _, pos in ipairs({
+		{ -14, 4.3, -42.5 }, -- на кухонной стойке
+		{ -45, 8.9, 43 }, -- на верхней полке склада
+		{ -8, 8.9, 44 }, -- на полке в баре
+		{ 22, 0.9, -35 }, -- под столиком в зале
+		{ -50, 3.7, -41.5 }, -- на столе в кабинете
+		{ 40, 0.9, 43 }, -- в туалетной кабинке
+		{ 84, 8.6, -28 }, -- на крыше фургона
+		{ 84, 8.9, 43 }, -- на верхней полке морозилки
+		{ -38, 6.6, 35 }, -- на крыше клетки
+		{ 97.5, 8.9, -2 }, -- на полке в гараже
+	}) do
+		marker("GoldenSpot", Vector3.new(pos[1], pos[2], pos[3]))
+	end
 
 	-- ---------- Точки патруля повара-робота ----------
-	for _, pos in ipairs({ { -45, -25 }, { -45, 20 }, { -10, -15 }, { -5, 28 }, { 40, 28 }, { 35, -12 }, { 25, -40 } }) do
+	for _, pos in ipairs({ { -45, -25 }, { -45, 20 }, { -10, -15 }, { -5, 28 }, { 40, 28 }, { 35, -12 }, { 25, -40 }, { 80, -10 }, { 70, -35 }, { 80, 30 } }) do
 		marker("PatrolPoint", Vector3.new(pos[1], 3, pos[2]))
 	end
 

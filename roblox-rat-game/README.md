@@ -49,7 +49,7 @@
 
 ---
 
-## ⚡ Установка с нуля (12 скриптов)
+## ⚡ Установка с нуля (13 скриптов)
 
 1. Roblox Studio → **New** → **Baseplate**. Открой **View → Explorer**.
 2. Создай скрипты **с точно такими именами** (наведи на папку → **⊕**):
@@ -65,6 +65,7 @@
 | ServerScriptService | **ModuleScript** | `ChefService` | `src/ServerScriptService/ChefService.lua` |
 | ServerScriptService | **ModuleScript** | `ChefAI` | `src/ServerScriptService/ChefAI.lua` |
 | ServerScriptService | **ModuleScript** | `TestMapBuilder` | `src/ServerScriptService/TestMapBuilder.lua` |
+| ServerScriptService | **ModuleScript** | `MonetizationService` | `src/ServerScriptService/MonetizationService.lua` |
 | StarterPlayer → StarterPlayerScripts | **LocalScript** | `RatHUD` | `src/StarterPlayerScripts/RatHUD.client.lua` |
 | StarterPlayer → StarterPlayerScripts | **LocalScript** | `Effects` | `src/StarterPlayerScripts/Effects.client.lua` |
 | StarterPlayer → StarterPlayerScripts | **LocalScript** | `MiniGames` | `src/StarterPlayerScripts/MiniGames.client.lua` |
@@ -76,6 +77,15 @@
 
 - **Заменить код** в 8 старых скриптах (двойной клик по скрипту, Cmd+A, Cmd+V).
 - **Добавить 3 новых:** `DataService` (ModuleScript в ServerScriptService), `Effects` и `MiniGames` (LocalScript в StarterPlayerScripts).
+
+## 💎 Донат (Robux)
+
+В магазине есть вкладка **💎 Магазин**: VIP (×2 сыра, золотая корона, блеск), пропуск ×2 Сыр и пачки сыра.
+1. **create.roblox.com** → твоя игра → **Monetization** → **Passes** → **Create a Pass**: создай «VIP» и «×2 Сыр», поставь цену.
+2. **Monetization** → **Developer Products** → **Create**: пачки «500 сыра», «2500 сыра», «10000 сыра».
+3. Скопируй **ID** каждого товара и вставь в `Config` (`Config.GamePasses` и `Config.Products`). Пока стоит 0, кнопка показывает «Скоро».
+
+Ещё в игре: **ежедневный бонус** (чем больше дней подряд, тем больше сыра) и **золотой сыр** ✨, который появляется в труднодоступных местах.
 
 ## 💾 Чтобы сохранялись монетки и шапки
 
