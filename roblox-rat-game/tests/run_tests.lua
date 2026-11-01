@@ -11,6 +11,9 @@ local passes = 0
 local function check(cond, msg)
 	if cond then
 		passes = passes + 1
+		if os.getenv("RAT_VERBOSE") then
+			print("PASS: " .. msg)
+		end
 	else
 		table.insert(failures, msg)
 		print("FAIL: " .. msg)
@@ -67,6 +70,8 @@ ConfigMod.GamePasses.VIP = 111
 ConfigMod.GamePasses.DoubleCheese = 222
 ConfigMod.Products[1].Id = 501
 ConfigMod.GamePasses.AllClasses = 333
+ConfigMod.ItemTiers.T2.Id = 702
+ConfigMod.ItemTiers.T3.Id = 703
 -- предсказуемые задания дня для теста
 ConfigMod.QuestPool = {
 	{ Id = "sabotage3", Kind = "Sabotage", Goal = 3, Reward = 40 },
@@ -731,7 +736,7 @@ advance(0.2)
 check(alice:GetAttribute("CoinMult") == 2, "double cheese pass bought in game")
 -- кнопка VIP в магазине
 click(guiText(alice, function(d)
-	return d:IsA("TextButton") and d.Text == "💎 Магазин"
+	return d:IsA("TextButton") and d.Text == "💎 Robux"
 end))
 advance(0.6)
 local vipBtn = guiText(alice, function(d)
@@ -892,6 +897,108 @@ M.runAs(alice, function()
 end)
 advance(0.3)
 check(not alice:GetAttribute("OwnedPets"):find("dragon"), "dragon locked until level 15")
+-- ===== любой предмет за Robux =====
+local DataMod = M.require(modules.DataService)
+M.runAs(bob, function()
+	RS.Remotes.SetPendingItem:FireServer("trail", "hearts") -- 120 🧀 → уровень T2
+end)
+advance(0.1)
+local r1, r2, r3, r4
+M.runAs(nil, function()
+	r1 = M.processReceipt({ PlayerId = bob.UserId, ProductId = 702, PurchaseId = "item-1" })
+	r2 = M.processReceipt({ PlayerId = bob.UserId, ProductId = 702, PurchaseId = "item-1" })
+end)
+advance(0.3)
+if not DS_FAIL then
+	check(r1 == Enum.ProductPurchaseDecision.PurchaseGranted and r2 == r1, "robux item receipt granted once")
+	check((bob:GetAttribute("OwnedTrails") or ""):find("hearts") ~= nil and bob:GetAttribute("Trail") == "hearts", "hearts trail bought with Robux")
+	-- оплачен не тот уровень: вместо предмета сыр
+	local cb = bob:GetAttribute("Coins")
+	M.runAs(bob, function()
+		RS.Remotes.SetPendingItem:FireServer("pet", "slime") -- 700 🧀 → T4
+	end)
+	advance(0.1)
+	M.runAs(nil, function()
+		r3 = M.processReceipt({ PlayerId = bob.UserId, ProductId = 702, PurchaseId = "item-2" })
+	end)
+	advance(0.2)
+	check(r3 == Enum.ProductPurchaseDecision.PurchaseGranted and not (bob:GetAttribute("OwnedPets") or ""):find("slime"), "wrong tier does not give item")
+	check(bob:GetAttribute("Coins") == cb + ConfigMod.ItemTiers.T2.Coins, "wrong tier gives cheese instead")
+	-- без выбранного предмета
+	M.runAs(nil, function()
+		r4 = M.processReceipt({ PlayerId = bob.UserId, ProductId = 703, PurchaseId = "item-3" })
+	end)
+	advance(0.2)
+	check(bob:GetAttribute("Coins") == cb + ConfigMod.ItemTiers.T2.Coins + ConfigMod.ItemTiers.T3.Coins, "no pending item gives cheese")
+	-- уже купленный предмет нельзя «выбрать» снова
+	M.runAs(bob, function()
+		RS.Remotes.SetPendingItem:FireServer("trail", "hearts")
+	end)
+	advance(0.1)
+	check(DataMod.getData(bob).PendingItem == nil, "owned item not pending")
+end
+-- кнопка R$ на карточке питомца (магазин Боба на английском)
+click(guiText(bob, function(d)
+	return d:IsA("TextButton") and d.Text == "🛒 Shop"
+end))
+advance(0.3)
+click(guiText(bob, function(d)
+	return d:IsA("TextButton") and d.Text == "🐹 Pets"
+end))
+advance(0.6)
+local hamsterRobux = nil
+for _, d in ipairs(bob.PlayerGui:GetDescendants()) do
+	if d:IsA("TextButton") and d.Text == "R$ 49" then
+		for _, sib in ipairs(d.Parent:GetChildren()) do
+			if sib:IsA("TextLabel") and sib.Text == "Hamster" then
+				hamsterRobux = d
+			end
+		end
+	end
+end
+check(hamsterRobux ~= nil, "hamster card has R$ 49 button")
+check(guiText(bob, function(d)
+	return d:IsA("TextButton") and d.Text == "🧀 250"
+end) ~= nil, "hamster card has cheese button")
+check(guiText(bob, function(d)
+	return d.Text == "Legendary"
+end) ~= nil, "rarity labels")
+local dumpDir = os.getenv("RAT_DUMP_UI")
+if dumpDir then
+	local dump = require("dump_ui")
+	dump(bob.PlayerGui.RatHUD, dumpDir .. "/shop_pets_en.json")
+	click(guiText(alice, function(d)
+		return d:IsA("TextButton") and d.Text == "🛒 Магазин"
+	end))
+	advance(0.3)
+	click(guiText(alice, function(d)
+		return d:IsA("TextButton") and d.Text == "🎩 Шапки"
+	end))
+	advance(0.6)
+	dump(alice.PlayerGui.RatHUD, dumpDir .. "/shop_hats_ru.json")
+	click(guiText(alice, function(d)
+		return d:IsA("TextButton") and d.Text == "💎 Robux"
+	end))
+	advance(0.6)
+	dump(alice.PlayerGui.RatHUD, dumpDir .. "/shop_robux_ru.json")
+	click(guiText(alice, function(d)
+		return d:IsA("TextButton") and d.Text == "✕"
+	end))
+end
+if hamsterRobux then
+	click(hamsterRobux)
+	advance(0.2)
+	check(M.prompts[#M.prompts].id == 702, "R$ button prompts tier product")
+	check(DataMod.getData(bob).PendingItem and DataMod.getData(bob).PendingItem.Id == "hamster", "pending hamster")
+	M.runAs(nil, function()
+		M.processReceipt({ PlayerId = bob.UserId, ProductId = 702, PurchaseId = "item-4" })
+	end)
+	advance(0.2)
+	if not DS_FAIL then
+		check(bob:GetAttribute("Pet") == "hamster", "hamster bought via R$ button")
+	end
+end
+
 -- паркур
 local trophy = CS:GetTagged("ObbyReward")[1]
 local c2 = alice:GetAttribute("Coins")

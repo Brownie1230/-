@@ -426,6 +426,8 @@ end)
 
 local addFeedLocal -- объявлена ниже, после ленты сообщений
 
+local shop, codesPanel -- окна создаются ниже, а используются раньше
+
 -- ===== Голосование за карту (лобби) =====
 local voteEvent = remotes:WaitForChild("VoteMap")
 local votePanel = panel(gui, {
@@ -463,7 +465,7 @@ end
 
 local function refreshVotes()
 	local set, n = mapListSet()
-	votePanel.Visible = n > 1 and (ReplicatedStorage:GetAttribute("State") or "Lobby") == "Lobby"
+	votePanel.Visible = n > 1 and (ReplicatedStorage:GetAttribute("State") or "Lobby") == "Lobby" and not shop.Visible
 	voteTitle.Text = L("vote_title")
 	local mine = player:GetAttribute("Vote")
 	for id, info in pairs(voteButtons) do
@@ -483,73 +485,179 @@ local function activeMapName()
 	return ""
 end
 
--- ===== Магазин: шапки, следы, классы (за сыр) и донат (Robux) =====
-local shop = panel(gui, {
+-- ===== 🛒 МАГАЗИН: всё за сыр 🧀 или за Robux 💎 =====
+local MarketplaceService = game:GetService("MarketplaceService")
+local pendingEvent = remotes:WaitForChild("SetPendingItem")
+local DARK = Color3.fromRGB(26, 18, 38)
+local RARITY = {
+	common = { color = Color3.fromRGB(160, 170, 185), key = "rarity_common" },
+	rare = { color = Color3.fromRGB(70, 165, 255), key = "rarity_rare" },
+	epic = { color = Color3.fromRGB(195, 95, 255), key = "rarity_epic" },
+	legendary = { color = Color3.fromRGB(255, 195, 45), key = "rarity_legendary" },
+}
+
+shop = make("Frame", gui, {
 	AnchorPoint = Vector2.new(0.5, 0.5),
-	Position = UDim2.fromScale(0.5, 0.5),
-	Size = UDim2.fromOffset(660, 520),
+	Position = UDim2.fromScale(0.5, 0.55),
+	Size = UDim2.fromOffset(800, 560),
+	BackgroundColor3 = WHITE,
+	BorderSizePixel = 0,
 	Visible = false,
 	ZIndex = 10,
 })
-local shopTitle = text(shop, { Position = UDim2.fromOffset(16, 10), Size = UDim2.new(1, -260, 0, 40), Text = "", TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 10 })
-local shopCoins = text(shop, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -64, 0, 14), Size = UDim2.fromOffset(160, 32), TextColor3 = YELLOW, ZIndex = 10, Text = "" })
-local closeShop = button(shop, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10), Size = UDim2.fromOffset(42, 42), Text = "✕", ZIndex = 10 }, RED)
+corner(shop, 20)
+stroke(shop, YELLOW, 4).Transparency = 0
+make("UIGradient", shop, {
+	Rotation = 90,
+	Color = ColorSequence.new(Color3.fromRGB(78, 44, 120), Color3.fromRGB(22, 16, 36)),
+})
+-- магазин уменьшается, чтобы влезть на экран телефона
+local shopScale = make("UIScale", shop, { Scale = 1 })
+local function shopFit()
+	local ok, size = pcall(function()
+		return workspace.CurrentCamera.ViewportSize
+	end)
+	if not ok or not size or size.X <= 0 then
+		return 1
+	end
+	return math.clamp(math.min((size.X - 20) / 800, (size.Y - 70) / 560), 0.4, 1)
+end
+
+-- шапка магазина
+local header = make("Frame", shop, {
+	Size = UDim2.new(1, 0, 0, 70),
+	BackgroundColor3 = WHITE,
+	BorderSizePixel = 0,
+	ZIndex = 10,
+})
+corner(header, 20)
+make("UIGradient", header, {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 150, 50)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 80, 140)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 80, 255)),
+	}),
+})
+local shopTitle = text(header, {
+	Position = UDim2.fromOffset(22, 8),
+	Size = UDim2.fromOffset(320, 54),
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextStrokeTransparency = 0.2,
+	Text = "",
+	ZIndex = 11,
+})
+local coinPill = make("Frame", header, {
+	AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.new(1, -72, 0.5, 0),
+	Size = UDim2.fromOffset(190, 46),
+	BackgroundColor3 = DARK,
+	BackgroundTransparency = 0.15,
+	BorderSizePixel = 0,
+	ZIndex = 11,
+})
+corner(coinPill, 23)
+padding(coinPill, 6)
+local shopCoins = text(coinPill, { Size = UDim2.fromScale(1, 1), TextColor3 = YELLOW, Text = "", ZIndex = 12 })
+local closeShop = button(header, {
+	AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.new(1, -16, 0.5, 0),
+	Size = UDim2.fromOffset(46, 46),
+	Text = "✕",
+	ZIndex = 12,
+}, RED)
+
+-- категории слева
 local TABS = {
-	{ id = "hats", key = "tab_hats", color = Color3.fromRGB(180, 130, 255) },
-	{ id = "trails", key = "tab_trails", color = Color3.fromRGB(255, 140, 200) },
-	{ id = "classes", key = "tab_classes", color = Color3.fromRGB(255, 180, 70) },
-	{ id = "pets", key = "tab_pets", color = Color3.fromRGB(140, 220, 120) },
-	{ id = "robux", key = "tab_robux", color = Color3.fromRGB(80, 200, 255) },
+	{ id = "hats", key = "tab_hats", color = Color3.fromRGB(185, 130, 255) },
+	{ id = "trails", key = "tab_trails", color = Color3.fromRGB(255, 130, 200) },
+	{ id = "classes", key = "tab_classes", color = Color3.fromRGB(255, 175, 70) },
+	{ id = "pets", key = "tab_pets", color = Color3.fromRGB(120, 225, 120) },
+	{ id = "robux", key = "tab_robux", color = Color3.fromRGB(80, 205, 255) },
 }
 local shopTab = "hats"
-local tabButtons, lists = {}, {}
+local tabButtons, tabStrokes, lists = {}, {}, {}
+local sidebar = make("Frame", shop, {
+	Position = UDim2.fromOffset(16, 86),
+	Size = UDim2.new(0, 170, 1, -102),
+	BackgroundTransparency = 1,
+	ZIndex = 10,
+})
+make("UIListLayout", sidebar, { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder })
 
-local function makeList()
+local refreshShop
+for i, tab in ipairs(TABS) do
+	local b = button(sidebar, { LayoutOrder = i, Size = UDim2.fromOffset(170, 60), Text = "", ZIndex = 11 }, tab.color)
+	local st = stroke(b, WHITE, 0)
+	st.Transparency = 0
+	tabButtons[tab.id] = b
+	tabStrokes[tab.id] = st
 	local list = make("ScrollingFrame", shop, {
-		Position = UDim2.fromOffset(12, 112),
-		Size = UDim2.new(1, -24, 1, -124),
+		Position = UDim2.fromOffset(202, 86),
+		Size = UDim2.new(1, -218, 1, -102),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 6,
+		ScrollBarImageColor3 = YELLOW,
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		CanvasSize = UDim2.new(0, 0, 0, 0),
 		ZIndex = 10,
 	})
+	make("UIPadding", list, { PaddingTop = UDim.new(0, 12), PaddingLeft = UDim.new(0, 4) })
 	make("UIGridLayout", list, {
-		CellSize = UDim2.fromOffset(150, 150),
-		CellPadding = UDim2.fromOffset(10, 10),
+		CellSize = UDim2.fromOffset(178, 226),
+		CellPadding = UDim2.fromOffset(12, 12),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 	})
-	return list
-end
-
-local refreshShop
-for i, tab in ipairs(TABS) do
-	local b = button(shop, { Position = UDim2.fromOffset(14 + (i - 1) * 126, 60), Size = UDim2.fromOffset(122, 42), Text = "", ZIndex = 10 }, tab.color)
-	tabButtons[tab.id] = b
-	lists[tab.id] = makeList()
+	lists[tab.id] = list
 	b.Activated:Connect(function()
 		shopTab = tab.id
 		refreshShop()
 	end)
 end
 
-local function card(list, order, icon, gold)
-	local c = make("Frame", list, {
-		LayoutOrder = order,
-		BackgroundColor3 = Color3.fromRGB(50, 40, 60),
-		BorderSizePixel = 0,
-		ZIndex = 10,
+-- карточка товара
+local function makeCard(list, order, icon, rarityKey, ribbonKey)
+	local r = RARITY[rarityKey] or RARITY.common
+	local c = make("Frame", list, { LayoutOrder = order, BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 10 })
+	corner(c, 16)
+	stroke(c, r.color, 3).Transparency = 0
+	make("UIGradient", c, {
+		Rotation = 90,
+		Color = ColorSequence.new(r.color:Lerp(Color3.new(0, 0, 0), 0.45), Color3.fromRGB(30, 22, 42)),
 	})
-	corner(c, 10)
-	if gold then
-		stroke(c, YELLOW, 3)
+	local scale = make("UIScale", c, {})
+	c.MouseEnter:Connect(function()
+		TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1.05 }):Play()
+	end)
+	c.MouseLeave:Connect(function()
+		TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1 }):Play()
+	end)
+	local card = { frame = c }
+	card.rarity = text(c, { Position = UDim2.fromOffset(10, 6), Size = UDim2.fromOffset(88, 18), TextColor3 = r.color, TextXAlignment = Enum.TextXAlignment.Left, Text = "", ZIndex = 11 })
+	card.rarityKey = r.key
+	if ribbonKey then
+		local rib = make("Frame", c, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 6, 0, -10), Size = UDim2.fromOffset(78, 26), BackgroundColor3 = RED, BorderSizePixel = 0, Rotation = 6, ZIndex = 12 })
+		corner(rib, 13)
+		stroke(rib, WHITE, 2).Transparency = 0
+		card.ribbon = text(rib, { Size = UDim2.fromScale(1, 1), Text = "", ZIndex = 13 })
+		card.ribbonKey = ribbonKey
 	end
-	text(c, { Position = UDim2.fromOffset(0, 4), Size = UDim2.new(1, 0, 0, 40), Text = icon, ZIndex = 10 })
-	local title = text(c, { Position = UDim2.fromOffset(6, 46), Size = UDim2.new(1, -12, 0, 24), Text = "", ZIndex = 10 })
-	local desc = text(c, { Position = UDim2.fromOffset(6, 72), Size = UDim2.new(1, -12, 0, 26), Font = Enum.Font.GothamMedium, TextWrapped = true, TextColor3 = Color3.fromRGB(210, 200, 220), Text = "", ZIndex = 10 })
-	local b = button(c, { Position = UDim2.new(0, 8, 1, -42), Size = UDim2.new(1, -16, 0, 34), Text = "", ZIndex = 10 })
-	return title, desc, b
+	text(c, { Position = UDim2.fromOffset(0, 26), Size = UDim2.new(1, 0, 0, 66), Text = icon, ZIndex = 11 })
+	card.check = text(c, { Position = UDim2.fromOffset(8, 62), Size = UDim2.fromOffset(28, 28), Text = "✅", Visible = false, ZIndex = 12 })
+	card.title = text(c, { Position = UDim2.fromOffset(8, 96), Size = UDim2.new(1, -16, 0, 26), Text = "", ZIndex = 11 })
+	card.desc = text(c, {
+		Position = UDim2.fromOffset(8, 124),
+		Size = UDim2.new(1, -16, 0, 40),
+		Font = Enum.Font.GothamMedium,
+		TextWrapped = true,
+		TextColor3 = Color3.fromRGB(225, 215, 235),
+		Text = "",
+		ZIndex = 11,
+	})
+	card.cheese = button(c, { Position = UDim2.new(0, 8, 1, -50), Size = UDim2.new(0.5, -12, 0, 42), Text = "", ZIndex = 11 }, YELLOW)
+	card.robux = button(c, { Position = UDim2.new(0.5, 4, 1, -50), Size = UDim2.new(0.5, -12, 0, 42), Text = "", ZIndex = 11 }, GREEN)
+	card.wide = button(c, { Position = UDim2.new(0, 8, 1, -50), Size = UDim2.new(1, -16, 0, 42), Text = "", Visible = false, ZIndex = 11 }, GREEN)
+	return card
 end
 
 local function setOf(attr)
@@ -560,7 +668,7 @@ local function setOf(attr)
 	return set
 end
 
--- товары за сыр: одинаковая логика для шапок, следов и классов
+-- товары за сыр/Robux: шапки, следы, классы, питомцы
 local CATS = {
 	{ tab = "hats", cat = "hat", items = Config.Hats, owned = "OwnedHats", current = "Hat", equipKey = "equip", equippedKey = "equipped" },
 	{ tab = "trails", cat = "trail", items = Config.Trails, owned = "OwnedTrails", current = "Trail", equipKey = "equip", equippedKey = "equipped" },
@@ -570,144 +678,188 @@ local CATS = {
 local itemCards = {}
 for _, c in ipairs(CATS) do
 	for i, item in ipairs(c.items) do
-		local title, desc, b = card(lists[c.tab], i, item.Icon, item.VipOnly)
-		local info = { cat = c, item = item, title = title, desc = desc, button = b }
-		table.insert(itemCards, info)
-		b.Activated:Connect(function()
-			local owned = setOf(c.owned)
-			if owned[item.Id] then
+		local ribbon = nil
+		if item.Id == "rainbow" or item.Id == "ninja" or item.Id == "slime" or item.Id == "crown" then
+			ribbon = "ribbon_hot"
+		end
+		local card = makeCard(lists[c.tab], i, item.Icon, Config.rarity(item), ribbon)
+		card.cat = c
+		card.item = item
+		table.insert(itemCards, card)
+		local function equipOrInfo()
+			if setOf(c.owned)[item.Id] then
 				shopEvent:FireServer("equip", item.Id, c.cat)
 			elseif item.VipOnly then
 				shopTab = "robux"
 				refreshShop()
-			elseif item.Level and (player:GetAttribute("Level") or 1) < item.Level then
+			end
+		end
+		card.wide.Activated:Connect(equipOrInfo)
+		card.cheese.Activated:Connect(function()
+			if item.Level and (player:GetAttribute("Level") or 1) < item.Level then
 				addFeedLocal(L("level_lock", item.Level))
 			else
 				shopEvent:FireServer("buy", item.Id, c.cat)
 			end
 		end)
+		card.robux.Activated:Connect(function()
+			local tier = Config.ItemTiers[Config.robuxTier(item) or ""]
+			if not tier or tier.Id <= 0 then
+				addFeedLocal(L("not_configured"))
+				return
+			end
+			pendingEvent:FireServer(c.cat, item.Id) -- сначала говорим серверу, что покупаем
+			MarketplaceService:PromptProductPurchase(player, tier.Id)
+		end)
 	end
 end
 
--- донат за Robux
-local MarketplaceService = game:GetService("MarketplaceService")
+-- 💎 Robux: пропуски, пачки сыра, «стать поваром»
 local robuxCards = {}
-local function addRobuxCard(order, icon, kind, key, id, price, gold)
-	local title, desc, b = card(lists.robux, order, icon, gold)
-	local info = { kind = kind, key = key, id = id, price = price, title = title, desc = desc, button = b }
-	table.insert(robuxCards, info)
-	b.Activated:Connect(function()
-		if info.id <= 0 then
+local function addRobuxCard(order, icon, kind, key, id, price, rarityKey, ribbonKey)
+	local card = makeCard(lists.robux, order, icon, rarityKey, ribbonKey)
+	card.kind, card.key, card.id, card.price = kind, key, id, price
+	card.cheese.Visible = false
+	card.robux.Visible = false
+	card.wide.Visible = true
+	table.insert(robuxCards, card)
+	card.wide.Activated:Connect(function()
+		if card.id <= 0 then
 			addFeedLocal(L("not_configured"))
 			return
 		end
-		if info.kind == "pass" then
-			MarketplaceService:PromptGamePassPurchase(player, info.id)
+		if card.kind == "pass" then
+			MarketplaceService:PromptGamePassPurchase(player, card.id)
 		else
-			MarketplaceService:PromptProductPurchase(player, info.id)
+			MarketplaceService:PromptProductPurchase(player, card.id)
 		end
 	end)
-	return info
+	return card
 end
-addRobuxCard(1, "👑", "pass", "VIP", Config.GamePasses.VIP, Config.GamePassPrices.VIP, true)
-addRobuxCard(2, "🧀", "pass", "DoubleCheese", Config.GamePasses.DoubleCheese, Config.GamePassPrices.DoubleCheese, false)
-addRobuxCard(3, "🐀", "pass", "AllClasses", Config.GamePasses.AllClasses, Config.GamePassPrices.AllClasses, false)
+addRobuxCard(1, "👑", "pass", "VIP", Config.GamePasses.VIP, Config.GamePassPrices.VIP, "legendary", "ribbon_hot")
+addRobuxCard(2, "🧀", "pass", "DoubleCheese", Config.GamePasses.DoubleCheese, Config.GamePassPrices.DoubleCheese, "epic", nil)
+addRobuxCard(3, "🐀", "pass", "AllClasses", Config.GamePasses.AllClasses, Config.GamePassPrices.AllClasses, "epic", nil)
 local escapeProduct = nil
 local order = 4
 for _, prod in ipairs(Config.Products) do
 	if prod.Kind == "escape" then
 		escapeProduct = prod
 	elseif prod.Kind == "chef" then
-		addRobuxCard(order, "👨‍🍳", "product", "BeChef", prod.Id, prod.Price, false)
+		addRobuxCard(order, "👨‍🍳", "product", "BeChef", prod.Id, prod.Price, "rare", nil)
 		order = order + 1
 	else
-		local info = addRobuxCard(order, "💰", "product", prod.Key, prod.Id, prod.Price, prod.Coins >= 10000)
-		info.coins = prod.Coins
+		local big = prod.Coins >= 10000
+		local card = addRobuxCard(order, big and "💰" or "🧀", "product", prod.Key, prod.Id, prod.Price, big and "legendary" or (prod.Coins >= 2500 and "epic" or "rare"), big and "ribbon_best" or nil)
+		card.coins = prod.Coins
 		order = order + 1
 	end
 end
 
+local GREY = Color3.fromRGB(110, 105, 120)
 refreshShop = function()
 	local coins = player:GetAttribute("Coins") or 0
 	local level = player:GetAttribute("Level") or 1
 	shopCoins.Text = "🧀 " .. coins
-	shopTitle.Text = L("shop_main")
+	shopTitle.Text = L("shop_header")
 	for _, tab in ipairs(TABS) do
+		local active = shopTab == tab.id
 		tabButtons[tab.id].Text = L(tab.key)
-		tabButtons[tab.id].BackgroundTransparency = (shopTab == tab.id) and 0 or 0.55
-		lists[tab.id].Visible = shopTab == tab.id
+		tabButtons[tab.id].BackgroundTransparency = active and 0 or 0.5
+		tabStrokes[tab.id].Thickness = active and 3 or 0
+		lists[tab.id].Visible = active
 	end
-	for _, info in ipairs(itemCards) do
-		local item, c, b = info.item, info.cat, info.button
-		local owned = setOf(c.owned)
-		local current = player:GetAttribute(c.current)
-		info.title.Text = Locale.itemName(lang(), item)
+	local function decorate(card)
+		card.rarity.Text = L(card.rarityKey)
+		if card.ribbon then
+			card.ribbon.Text = L(card.ribbonKey)
+		end
+	end
+	for _, card in ipairs(itemCards) do
+		decorate(card)
+		local item, c = card.item, card.cat
+		local owned = setOf(c.owned)[item.Id]
+		local current = player:GetAttribute(c.current) == item.Id
+		card.title.Text = Locale.itemName(lang(), item)
 		if c.cat == "class" then
-			info.desc.Text = L("class_" .. item.Id .. "_desc")
+			card.desc.Text = L("class_" .. item.Id .. "_desc")
 		elseif c.cat == "pet" and (item.Bonus or 0) > 0 then
-			info.desc.Text = L("pet_bonus", math.floor(item.Bonus * 100 + 0.5)) .. (item.Level and (" • ⭐" .. item.Level) or "")
+			card.desc.Text = L("pet_bonus", math.floor(item.Bonus * 100 + 0.5))
 		elseif item.Level then
-			info.desc.Text = "⭐ " .. item.Level
+			card.desc.Text = "⭐ " .. item.Level
 		else
-			info.desc.Text = ""
+			card.desc.Text = ""
 		end
-		if current == item.Id then
-			b.Text = L(c.equippedKey)
-			b.BackgroundColor3 = Color3.fromRGB(120, 120, 130)
-		elseif owned[item.Id] then
-			b.Text = L(c.equipKey)
-			b.BackgroundColor3 = GREEN
+		card.check.Visible = current
+		local single = owned or item.VipOnly or not Config.robuxTier(item)
+		card.wide.Visible = single
+		card.cheese.Visible = not single
+		card.robux.Visible = not single
+		if current then
+			card.wide.Text = L(c.equippedKey)
+			card.wide.BackgroundColor3 = GREY
+		elseif owned then
+			card.wide.Text = L(c.equipKey)
+			card.wide.BackgroundColor3 = GREEN
 		elseif item.VipOnly then
-			b.Text = L("vip_only")
-			b.BackgroundColor3 = Color3.fromRGB(255, 200, 60)
-		elseif item.Level and level < item.Level then
-			b.Text = L("level_lock", item.Level)
-			b.BackgroundColor3 = Color3.fromRGB(90, 80, 95)
-		elseif coins >= item.Price then
-			b.Text = L("buy", item.Price)
-			b.BackgroundColor3 = YELLOW
+			card.wide.Text = L("vip_only")
+			card.wide.BackgroundColor3 = YELLOW
+		elseif single then
+			card.wide.Text = L("soon")
+			card.wide.BackgroundColor3 = GREY
 		else
-			b.Text = L("locked", item.Price)
-			b.BackgroundColor3 = Color3.fromRGB(90, 80, 95)
+			if item.Level and level < item.Level then
+				card.cheese.Text = "🔒 ⭐" .. item.Level
+				card.cheese.BackgroundColor3 = GREY
+			else
+				card.cheese.Text = "🧀 " .. item.Price
+				card.cheese.BackgroundColor3 = (coins >= item.Price) and YELLOW or Color3.fromRGB(150, 130, 90)
+			end
+			local tier = Config.ItemTiers[Config.robuxTier(item)]
+			card.robux.Text = "R$ " .. tier.Price
+			card.robux.BackgroundColor3 = (tier.Id > 0) and GREEN or Color3.fromRGB(90, 140, 100)
 		end
 	end
-	for _, info in ipairs(robuxCards) do
-		local b = info.button
-		if info.key == "VIP" then
-			info.title.Text = L("vip_title")
-			info.desc.Text = L("vip_desc")
-		elseif info.key == "DoubleCheese" then
-			info.title.Text = L("double_title")
-			info.desc.Text = L("double_desc")
-		elseif info.key == "AllClasses" then
-			info.title.Text = L("allclasses_title")
-			info.desc.Text = L("allclasses_desc")
-		elseif info.key == "BeChef" then
-			info.title.Text = L("bechef_title")
-			info.desc.Text = L("bechef_desc")
+	for _, card in ipairs(robuxCards) do
+		decorate(card)
+		if card.key == "VIP" then
+			card.title.Text = L("vip_title")
+			card.desc.Text = L("vip_desc")
+		elseif card.key == "DoubleCheese" then
+			card.title.Text = L("double_title")
+			card.desc.Text = L("double_desc")
+		elseif card.key == "AllClasses" then
+			card.title.Text = L("allclasses_title")
+			card.desc.Text = L("allclasses_desc")
+		elseif card.key == "BeChef" then
+			card.title.Text = L("bechef_title")
+			card.desc.Text = L("bechef_desc")
 		else
-			info.title.Text = L("pack_title", info.coins)
-			info.desc.Text = L("pack_desc")
+			card.title.Text = L("pack_title", card.coins)
+			card.desc.Text = L("pack_desc")
 		end
-		local done = (info.kind == "pass" and player:GetAttribute(info.key)) or (info.key == "BeChef" and player:GetAttribute("ChefNext"))
+		local done = (card.kind == "pass" and player:GetAttribute(card.key)) or (card.key == "BeChef" and player:GetAttribute("ChefNext"))
+		card.check.Visible = done == true
 		if done then
-			b.Text = L("owned")
-			b.BackgroundColor3 = Color3.fromRGB(120, 120, 130)
-		elseif info.id <= 0 then
-			b.Text = L("soon")
-			b.BackgroundColor3 = Color3.fromRGB(90, 80, 95)
+			card.wide.Text = L("owned")
+			card.wide.BackgroundColor3 = GREY
+		elseif card.id <= 0 then
+			card.wide.Text = L("soon")
+			card.wide.BackgroundColor3 = GREY
 		else
-			b.Text = "R$ " .. info.price
-			b.BackgroundColor3 = GREEN
+			card.wide.Text = "R$ " .. card.price
+			card.wide.BackgroundColor3 = GREEN
 		end
 	end
 end
 
 shopButton.Activated:Connect(function()
+	codesPanel.Visible = false
 	shop.Visible = not shop.Visible
 	if shop.Visible then
 		refreshShop()
-		popIn(shop)
+		local fit = shopFit()
+		shopScale.Scale = fit * 0.7
+		TweenService:Create(shopScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = fit }):Play()
 	end
 end)
 closeShop.Activated:Connect(function()
@@ -715,7 +867,7 @@ closeShop.Activated:Connect(function()
 end)
 
 -- ===== 🎟️ Коды =====
-local codesPanel = panel(gui, {
+codesPanel = panel(gui, {
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Position = UDim2.fromScale(0.5, 0.45),
 	Size = UDim2.fromOffset(420, 210),
@@ -752,6 +904,7 @@ codeBox.FocusLost:Connect(function(enter)
 	end
 end)
 codesButton.Activated:Connect(function()
+	shop.Visible = false
 	codesPanel.Visible = not codesPanel.Visible
 	if codesPanel.Visible then
 		popIn(codesPanel)
@@ -1256,7 +1409,7 @@ RunService.Heartbeat:Connect(function(dt)
 		topStroke.Transparency = 0.4
 	end
 	chaosBg.Visible = state ~= "Lobby"
-	lobbyBar.Visible = state == "Lobby"
+	lobbyBar.Visible = state == "Lobby" and not shop.Visible
 	if state ~= "Lobby" then
 		shop.Visible = false
 	end

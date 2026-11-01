@@ -9,6 +9,7 @@ local Players = game:GetService("Players")
 local MarketplaceService = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local Locale = require(ReplicatedStorage:WaitForChild("Locale"))
 
 local MonetizationService = {}
 local ctx, DataService
@@ -27,6 +28,12 @@ local function productById(id)
 	for _, p in ipairs(Config.Products) do
 		if p.Id == id and p.Id > 0 then
 			return p
+		end
+	end
+	-- товары «любой предмет за Robux»
+	for tier, t in pairs(Config.ItemTiers) do
+		if t.Id == id and t.Id > 0 then
+			return { Kind = "item", Tier = tier, Coins = t.Coins, Price = t.Price }
 		end
 	end
 	return nil
@@ -112,11 +119,17 @@ local function processReceipt(receipt)
 	end
 	local kind = product.Kind or "cheese"
 	local escapeNow = false
+	local gotItem, gotCat = nil, nil
 	local ok, already = DataService.processPurchase(player, receipt.PurchaseId, function(data)
 		if kind == "cheese" then
 			data.Coins = data.Coins + product.Coins
 		elseif kind == "chef" then
 			data.ChefNext = true
+		elseif kind == "item" then
+			gotItem, gotCat = DataService.grantPendingItem(data, product.Tier)
+			if not gotItem then
+				data.Coins = data.Coins + product.Coins -- предмет уже был: выдаём сыр
+			end
 		elseif kind == "escape" then
 			if ctx.canEscape(player) then
 				escapeNow = true
@@ -134,6 +147,22 @@ local function processReceipt(receipt)
 			ctx.fxPlayer(player, "coins", product.Coins, "💎")
 		elseif kind == "chef" then
 			ctx.notifyPlayer(player, "good", "bechef_done")
+		elseif kind == "item" then
+			if gotItem then
+				local item = gotItem
+				ctx.notifyPlayer(player, "good", "bought", item.Icon, function(lang)
+					return Locale.itemName(lang, item)
+				end)
+				if gotCat == "pet" then
+					ctx.refreshPet(player)
+				elseif gotCat == "class" then
+					ctx.refreshClass(player)
+				else
+					ctx.refreshHat(player)
+				end
+			else
+				ctx.notifyPlayer(player, "good", "item_fallback", product.Coins)
+			end
 		elseif kind == "escape" then
 			if escapeNow then
 				ctx.escape(player)
@@ -155,6 +184,9 @@ function MonetizationService.init(context, dataService)
 	DataService = dataService
 	MarketplaceService.ProcessReceipt = processReceipt
 	MarketplaceService.PromptGamePassPurchaseFinished:Connect(onPassPurchased)
+	ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("SetPendingItem").OnServerEvent:Connect(function(player, category, itemId)
+		DataService.setPending(player, category, itemId)
+	end)
 end
 
 return MonetizationService

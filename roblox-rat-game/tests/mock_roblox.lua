@@ -962,6 +962,7 @@ def("Frame", "GuiObject", {})
 def("ScrollingFrame", "GuiObject", {
 	CanvasSize = "UDim2",
 	ScrollBarThickness = "number",
+	ScrollBarImageColor3 = "Color3",
 	AutomaticCanvasSize = "EnumItem:AutomaticSize",
 	ScrollingDirection = "EnumItem:ScrollingDirection",
 })

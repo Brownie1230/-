@@ -1,0 +1,90 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&display=block" rel="stylesheet">
+<style>
+html,body{margin:0;width:1280px;height:720px;overflow:hidden;background:#000}
+#bg{position:absolute;inset:-20px;background:url(bg.png) center/cover;filter:blur(6px) brightness(.55)}
+#root{position:absolute;left:0;top:36px;width:1280px;height:684px}
+.n{position:absolute;box-sizing:border-box}
+.t{position:absolute;inset:0;display:flex;align-items:center;white-space:pre;font-family:'Fredoka',sans-serif;font-weight:600;line-height:1.05;-webkit-text-stroke:0}
+#topbar{position:absolute;left:0;top:0;width:1280px;height:36px;background:rgba(0,0,0,.35)}
+</style></head><body><div id="bg"></div><div id="topbar"></div><div id="root"></div>
+<script>
+const ctx = document.createElement('canvas').getContext('2d');
+function measure(text, size){ ctx.font = `600 ${size}px Fredoka, sans-serif`; return ctx.measureText(text).width; }
+const GUI = ['Frame','TextLabel','TextButton','TextBox','ScrollingFrame'];
+function rgba(c,a){ return c ? `rgba(${c[0]},${c[1]},${c[2]},${a})` : 'transparent'; }
+function find(n,cls){ return (n.children||[]).find(c=>c.class===cls); }
+function sizeOf(n, cw, ch){ const s=n.size||[0,0,0,0]; return [s[0]*cw+s[1], s[2]*ch+s[3]]; }
+function render(n, x, y, w, h, parentEl, z){
+  if(n.visible===false) return;
+  const el = document.createElement('div'); el.className='n';
+  el.style.left=x+'px'; el.style.top=y+'px'; el.style.width=Math.max(0,w)+'px'; el.style.height=Math.max(0,h)+'px';
+  el.style.zIndex = (n.z||1);
+  const grad=find(n,'UIGradient'), corner=find(n,'UICorner'), strokeN=find(n,'UIStroke'), scaleN=find(n,'UIScale');
+  const a = 1-(n.bgT===undefined?0:n.bgT);
+  if(a>0.001){
+    if(grad && grad.colors && grad.colors.length>1){
+      const stops = grad.colors.map(([t,c])=>{ const m=[c[0]*n.bg[0]/255,c[1]*n.bg[1]/255,c[2]*n.bg[2]/255]; return `${rgba(m,a)} ${(t*100).toFixed(0)}%`; });
+      el.style.background=`linear-gradient(${(grad.rotation||0)+90}deg, ${stops.join(',')})`;
+    } else el.style.background=rgba(n.bg,a);
+  }
+  if(corner) el.style.borderRadius=corner.radius+'px';
+  if(strokeN && strokeN.thickness>0) el.style.boxShadow=`0 0 0 ${strokeN.thickness}px ${rgba(strokeN.color,1-strokeN.t)}`;
+  if(scaleN && scaleN.scale && scaleN.scale!==1) el.style.transform=`scale(${scaleN.scale})`;
+  if(n.class==='ScrollingFrame') el.style.overflow='hidden';
+  if(n.text!==undefined && n.text!==''){
+    const t=document.createElement('div'); t.className='t';
+    const txt=n.text.replace(/<[^>]+>/g,'');
+    t.textContent=txt;
+    t.style.color=rgba(n.textColor,1);
+    t.style.justifyContent = n.xAlign==='Left'?'flex-start':(n.xAlign==='Right'?'flex-end':'center');
+    const lines=txt.split('\n'); const longest=lines.reduce((m,l)=>measure(l,100)>measure(m,100)?l:m,'');
+    let size = n.textSize || Math.min(h*0.86/lines.length, 100);
+    if(!n.textSize){ const mw=measure(longest,size); if(mw>w-4) size=size*(w-4)/mw; }
+    t.style.fontSize=Math.max(6,size)+'px';
+    if(n.class==='TextButton') t.style.textShadow='0 1px 0 rgba(255,255,255,.25)';
+    else t.style.textShadow='0 2px 2px rgba(0,0,0,.6)';
+    el.appendChild(t);
+  }
+  parentEl.appendChild(el);
+  // дети
+  const pad=find(n,'UIPadding')||{padT:0,padL:0,padR:0,padB:0};
+  const cx=pad.padL, cy=pad.padT, cw=w-pad.padL-pad.padR, ch=h-pad.padT-pad.padB;
+  const kids=(n.children||[]).filter(c=>GUI.includes(c.class));
+  const list=find(n,'UIListLayout'), grid=find(n,'UIGridLayout');
+  if(grid){
+    const cell=[grid.cell[0]*cw+grid.cell[1], grid.cell[2]*ch+grid.cell[3]], gp=[grid.cellPad[1], grid.cellPad[3]];
+    const cols=Math.max(1,Math.floor((cw+gp[0])/(cell[0]+gp[0])));
+    kids.filter(k=>k.visible!==false).sort((a,b)=>(a.order||0)-(b.order||0)).forEach((k,i)=>{
+      render(k, cx+(i%cols)*(cell[0]+gp[0]), cy+Math.floor(i/cols)*(cell[1]+gp[1]), cell[0], cell[1], el);
+    });
+  } else if(list){
+    const vis=kids.filter(k=>k.visible!==false).sort((a,b)=>(a.order||0)-(b.order||0));
+    const sizes=vis.map(k=>sizeOf(k,cw,ch));
+    if(list.dir==='Horizontal'){
+      const total=sizes.reduce((s,z)=>s+z[0],0)+list.pad*Math.max(0,vis.length-1);
+      let px = cx + (list.hAlign==='Center' ? (cw-total)/2 : 0);
+      vis.forEach((k,i)=>{ render(k, px, cy+(ch-sizes[i][1])/2, sizes[i][0], sizes[i][1], el); px+=sizes[i][0]+list.pad; });
+    } else {
+      let py=cy;
+      vis.forEach((k,i)=>{ const xx = list.hAlign==='Center' ? cx+(cw-sizes[i][0])/2 : cx; render(k, xx, py, sizes[i][0], sizes[i][1], el); py+=sizes[i][1]+list.pad; });
+    }
+  } else {
+    kids.forEach(k=>{
+      const [kw,kh]=sizeOf(k,cw,ch); const p=k.pos||[0,0,0,0];
+      render(k, cx+p[0]*cw+p[1]-k.anchor[0]*kw, cy+p[2]*ch+p[3]-k.anchor[1]*kh, kw, kh, el);
+    });
+  }
+}
+window.draw = async function(file){
+  await document.fonts.ready;
+  const data = await (await fetch(file)).json();
+  const root=document.getElementById('root'); root.innerHTML='';
+  const W=1280,H=684;
+  (data.children||[]).filter(c=>GUI.includes(c.class)).forEach(k=>{
+    const [kw,kh]=sizeOf(k,W,H); const p=k.pos||[0,0,0,0];
+    render(k, p[0]*W+p[1]-k.anchor[0]*kw, p[2]*H+p[3]-k.anchor[1]*kh, kw, kh, root);
+  });
+  return true;
+};
+</script></body></html>

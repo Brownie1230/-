@@ -107,6 +107,17 @@ local function unlockLevelHats(player, data, announce)
 	end
 end
 
+local function deepCopy(v)
+	if type(v) ~= "table" then
+		return v
+	end
+	local t = {}
+	for k, val in pairs(v) do
+		t[k] = deepCopy(val)
+	end
+	return t
+end
+
 local function copySet(src, dst, valid)
 	if type(src) == "table" then
 		for id, on in pairs(src) do
@@ -304,7 +315,7 @@ function DataService.grantAllClasses(player)
 	publish(player)
 end
 
--- Покупка за Robux: один чек засчитывается один раз. mutate(data) меняет Coins/ChefNext.
+-- Покупка за Robux: один чек засчитывается один раз. mutate(data) меняет данные игрока.
 -- Сначала сохраняем, и только потом подтверждаем Roblox (иначе Robux пропали бы зря).
 function DataService.processPurchase(player, purchaseId, mutate)
 	local data = cache[player]
@@ -315,7 +326,7 @@ function DataService.processPurchase(player, purchaseId, mutate)
 	if data.Purchases[purchaseId] then
 		return true, true
 	end
-	local before = { Coins = data.Coins, ChefNext = data.ChefNext }
+	local before = deepCopy(data)
 	data.Purchases[purchaseId] = true
 	mutate(data)
 	if store then
@@ -323,9 +334,7 @@ function DataService.processPurchase(player, purchaseId, mutate)
 			store:SetAsync("player_" .. player.UserId, data)
 		end)
 		if not ok then
-			data.Purchases[purchaseId] = nil
-			data.Coins = before.Coins
-			data.ChefNext = before.ChefNext
+			cache[player] = before -- откатываем всё как было
 			publish(player)
 			return false
 		end
@@ -410,6 +419,38 @@ local CATEGORIES = {
 	class = { list = "Classes", owned = "OwnedClasses", field = "Class", get = Config.getClass },
 	pet = { list = "Pets", owned = "OwnedPets", field = "Pet", get = Config.getPet },
 }
+
+-- Игрок нажал «R$» на предмете: запоминаем, что он хочет купить
+function DataService.setPending(player, category, itemId)
+	local data = cache[player]
+	local cat = type(category) == "string" and CATEGORIES[category]
+	if not data or not cat or type(itemId) ~= "string" then
+		return false
+	end
+	local item = cat.get(itemId)
+	if not item or not Config.robuxTier(item) or data[cat.owned][itemId] then
+		return false
+	end
+	data.PendingItem = { Cat = category, Id = itemId }
+	return true
+end
+
+-- Выдать предмет, который игрок выбрал, если уровень цены совпадает с оплаченным
+function DataService.grantPendingItem(data, tier)
+	local pend = data.PendingItem
+	data.PendingItem = nil
+	if type(pend) ~= "table" then
+		return nil
+	end
+	local cat = CATEGORIES[pend.Cat]
+	local item = cat and cat.get(pend.Id)
+	if not item or Config.robuxTier(item) ~= tier or data[cat.owned][item.Id] then
+		return nil
+	end
+	data[cat.owned][item.Id] = true
+	data[cat.field] = item.Id
+	return item, pend.Cat
+end
 
 local function onShop(player, action, itemId, category)
 	local data = cache[player]

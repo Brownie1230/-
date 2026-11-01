@@ -255,6 +255,51 @@ Config.Products = {
 	{ Key = "BeChef", Kind = "chef", Id = 0, Price = 25 }, -- 👨‍🍳 стать поваром в следующем раунде
 }
 
+-- ===== Любой предмет за Robux (4 ценовых уровня) =====
+-- Создай 4 Developer Product (например «Предмет 25», «Предмет 49», «Предмет 99», «Предмет 149»)
+-- и вставь их ID сюда. Тогда любую шапку/след/класс/питомца можно купить за Robux.
+-- Coins — сколько сыра выдать, если предмет уже был куплен (чтобы Robux не пропали).
+Config.ItemTiers = {
+	T1 = { Id = 0, Price = 25, Coins = 300 }, -- предметы до 100 🧀
+	T2 = { Id = 0, Price = 49, Coins = 600 }, -- до 250 🧀
+	T3 = { Id = 0, Price = 99, Coins = 1300 }, -- до 500 🧀 и предметы за уровень
+	T4 = { Id = 0, Price = 149, Coins = 2000 }, -- дороже 500 🧀
+}
+
+-- Какой уровень цены у предмета (nil — за Robux не продаётся)
+function Config.robuxTier(item)
+	if not item or item.VipOnly then
+		return nil
+	end
+	if item.Level then
+		return "T3"
+	end
+	local price = item.Price or 0
+	if price <= 0 then
+		return nil
+	elseif price <= 100 then
+		return "T1"
+	elseif price <= 250 then
+		return "T2"
+	elseif price <= 500 then
+		return "T3"
+	end
+	return "T4"
+end
+
+-- Редкость предмета (цвет карточки в магазине)
+function Config.rarity(item)
+	local price = item.Price or 0
+	if item.VipOnly or (item.Level and item.Level >= 10) or price >= 400 then
+		return "legendary"
+	elseif item.Level or price >= 180 then
+		return "epic"
+	elseif price >= 80 then
+		return "rare"
+	end
+	return "common"
+end
+
 -- ===== Бонусы =====
 Config.DailyBonusBase = 25 -- ежедневный бонус в первый день
 Config.DailyBonusStep = 25 -- +25 за каждый следующий день подряд
