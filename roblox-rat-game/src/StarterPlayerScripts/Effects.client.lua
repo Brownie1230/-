@@ -462,21 +462,25 @@ end
 
 -- ===== ☀️ В лобби светлый день, в раунде ночь (меняется только на твоём экране) =====
 local Lighting = game:GetService("Lighting")
+-- обычный солнечный день (не слишком ярко: без сильного свечения и дымки)
 local DAY = {
 	ClockTime = 14,
-	Brightness = 2.4,
-	Ambient = Color3.fromRGB(125, 115, 120),
-	OutdoorAmbient = Color3.fromRGB(150, 150, 160),
-	EnvironmentDiffuseScale = 0.7,
-	Density = 0.2,
-	Haze = 0.8,
-	AtmColor = Color3.fromRGB(200, 215, 235),
-	Decay = Color3.fromRGB(120, 150, 200),
+	Brightness = 1.6,
+	Ambient = Color3.fromRGB(70, 65, 75),
+	OutdoorAmbient = Color3.fromRGB(110, 110, 120),
+	EnvironmentDiffuseScale = 0.5,
+	Density = 0.08,
+	Haze = 0,
+	AtmColor = Color3.fromRGB(190, 205, 225),
+	Decay = Color3.fromRGB(110, 140, 190),
+	BloomIntensity = 0.15, -- днём почти без свечения
+	BloomThreshold = 2.5,
 }
 local night = nil -- ночные настройки карты (запоминаем при старте)
 local dayMix = nil -- 0 = ночь, 1 = день
 local function updateDaylight(dt, inLobby)
 	local atm = Lighting:FindFirstChildOfClass("Atmosphere")
+	local bloom = Lighting:FindFirstChildOfClass("BloomEffect")
 	if not night then
 		night = {
 			ClockTime = Lighting.ClockTime,
@@ -488,6 +492,8 @@ local function updateDaylight(dt, inLobby)
 			Haze = atm and atm.Haze,
 			AtmColor = atm and atm.Color,
 			Decay = atm and atm.Decay,
+			BloomIntensity = bloom and bloom.Intensity,
+			BloomThreshold = bloom and bloom.Threshold,
 		}
 	end
 	local target = inLobby and 1 or 0
@@ -517,6 +523,10 @@ local function updateDaylight(dt, inLobby)
 		atm.Haze = mix(night.Haze, DAY.Haze)
 		atm.Color = night.AtmColor:Lerp(DAY.AtmColor, k)
 		atm.Decay = night.Decay:Lerp(DAY.Decay, k)
+	end
+	if bloom and night.BloomIntensity then
+		bloom.Intensity = mix(night.BloomIntensity, DAY.BloomIntensity)
+		bloom.Threshold = mix(night.BloomThreshold, DAY.BloomThreshold)
 	end
 end
 
