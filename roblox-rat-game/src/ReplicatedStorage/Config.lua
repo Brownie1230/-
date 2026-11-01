@@ -150,12 +150,13 @@ Config.QuestPool = {
 	{ Id = "emote3", Kind = "Emote", Goal = 3, Reward = 40 },
 }
 
--- ===== Эмоции крыс (Z X C V или кнопка 💃) =====
+-- ===== Эмоции крыс (Z X C V B или кнопка 💃) =====
 Config.Emotes = {
 	{ Id = "dance", Key = "Z", Duration = 3 },
 	{ Id = "flip", Key = "X", Duration = 1.2 },
 	{ Id = "wave", Key = "C", Duration = 2.5 },
 	{ Id = "dead", Key = "V", Duration = 4 },
+	{ Id = "breakdance", Key = "B", Duration = 3.5 },
 }
 Config.EmoteCooldown = 1.5
 

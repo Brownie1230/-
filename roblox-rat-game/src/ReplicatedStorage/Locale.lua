@@ -154,13 +154,14 @@ S.ru = {
 	quest_Catch = "Поймай крыс (повар): %d/%d",
 	quest_Repair = "Почини вещи (повар): %d/%d",
 	quest_Ability = "Используй способность: %d/%d",
-	quest_Emote = "Станцуй (Z X C V): %d/%d",
+	quest_Emote = "Станцуй (Z X C V B): %d/%d",
 	quest_done = "✅ Задание выполнено! +%d 🧀",
 	leaderboard_title = "🏆 ТОП ПОБЕД",
 	emote_dance = "💃 Танец",
 	emote_flip = "🤸 Сальто",
 	emote_wave = "👋 Привет",
 	emote_dead = "💀 Притвориться",
+	emote_breakdance = "🕺 Брейк-данс",
 	event_GiantChef = "🧟 ГИГАНТСКИЙ ПОВАР! Он огромный — прячьтесь!",
 	ev_GiantChef = "🧟 Гигант",
 	invite_button = "👥 Пригласить",
@@ -215,7 +216,7 @@ S.ru = {
 	tut_chef3 = "3. Ставь мышеловки (клавиша 2)",
 	tut_chef4 = "4. Продержись до конца таймера!",
 	marker_dist = "%d м",
-	howto_board = "❓ КАК ИГРАТЬ\n🐀 Крысы: ломайте вещи (E) и наполните ХАОС до 100%\n👨‍🍳 Повар: ловите крыс и чините поломки\n🧀 Сыр → шапки, следы, классы, питомцы\n📜 Задания дня • 🎟️ Коды • 💃 Танцы: Z X C V",
+	howto_board = "❓ КАК ИГРАТЬ\n🐀 Крысы: ломайте вещи (E) и наполните ХАОС до 100%\n👨‍🍳 Повар: ловите крыс и чините поломки\n🧀 Сыр → шапки, следы, классы, питомцы\n📜 Задания дня • 🎟️ Коды • 💃 Танцы: Z X C V B",
 }
 
 S.en = {
@@ -354,13 +355,14 @@ S.en = {
 	quest_Catch = "Catch rats (chef): %d/%d",
 	quest_Repair = "Fix things (chef): %d/%d",
 	quest_Ability = "Use your ability: %d/%d",
-	quest_Emote = "Dance (Z X C V): %d/%d",
+	quest_Emote = "Dance (Z X C V B): %d/%d",
 	quest_done = "✅ Quest complete! +%d 🧀",
 	leaderboard_title = "🏆 TOP WINS",
 	emote_dance = "💃 Dance",
 	emote_flip = "🤸 Flip",
 	emote_wave = "👋 Wave",
 	emote_dead = "💀 Play dead",
+	emote_breakdance = "🕺 Breakdance",
 	event_GiantChef = "🧟 GIANT CHEF! He's huge — hide!",
 	ev_GiantChef = "🧟 Giant",
 	invite_button = "👥 Invite",
@@ -414,7 +416,7 @@ S.en = {
 	tut_chef3 = "3. Place mousetraps (key 2)",
 	tut_chef4 = "4. Survive until the timer ends!",
 	marker_dist = "%d m",
-	howto_board = "❓ HOW TO PLAY\n🐀 Rats: break things (E) and fill CHAOS to 100%\n👨‍🍳 Chef: catch rats and fix everything\n🧀 Cheese → hats, trails, classes, pets\n📜 Daily quests • 🎟️ Codes • 💃 Dances: Z X C V",
+	howto_board = "❓ HOW TO PLAY\n🐀 Rats: break things (E) and fill CHAOS to 100%\n👨‍🍳 Chef: catch rats and fix everything\n🧀 Cheese → hats, trails, classes, pets\n📜 Daily quests • 🎟️ Codes • 💃 Dances: Z X C V B",
 }
 
 local RU_LOCALES = { ru = true, uk = true, be = true, kk = true, uz = true, ky = true, hy = true, az = true, ka = true }

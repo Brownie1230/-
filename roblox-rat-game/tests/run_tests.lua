@@ -1101,6 +1101,11 @@ if bob:GetAttribute("Role") == "Rat" then
 	advance(3.2)
 	check(not bob:GetAttribute("Armored"), "armor ended")
 	check(bob:GetAttribute("Emote") == nil, "emote ended")
+	M.runAs(bob, function()
+		RS.Remotes.Emote:FireServer("breakdance")
+	end)
+	advance(0.1)
+	check(bob:GetAttribute("Emote") == "breakdance", "breakdance emote")
 end
 if cara:GetAttribute("Role") == "Rat" then
 	M.runAs(cara, function()

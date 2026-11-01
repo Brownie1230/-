@@ -362,6 +362,10 @@ local function animateRat(model, data, dt, t)
 	elseif emote == "dead" then
 		local k = math.clamp(u / 0.35, 0, 1)
 		E = CFrame.new(0, 0.15 * k, 0) * CFrame.Angles(0, 0, math.pi * k)
+	elseif emote == "breakdance" then
+		-- ложится на спину и крутится волчком, как брейкер
+		local k = math.clamp(u / 0.3, 0, 1)
+		E = CFrame.new(0, 0.4 * k, 0) * CFrame.Angles(0, u * 14 * k, 0) * CFrame.Angles(0, 0, math.pi * k)
 	else
 		return
 	end
@@ -377,6 +381,8 @@ local function animateRat(model, data, dt, t)
 			extra = CFrame.new(0, 0.6 + math.sin(u * 14) * 0.3, -0.3) -- машет лапкой
 		elseif emote == "dead" then
 			extra = CFrame.new(0, math.sin(u * 20 + i) * 0.08, 0) -- дёргает лапками
+		elseif emote == "breakdance" then
+			extra = CFrame.new(0, 0.3 + math.sin(u * 18 + i * 1.6) * 0.35, 0) -- дрыгает лапками в воздухе
 		end
 		foot.motor.C0 = E * foot.motor.C0 * extra
 	end
