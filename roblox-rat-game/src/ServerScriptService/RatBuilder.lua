@@ -141,6 +141,36 @@ HATS.vipcrown = function(add, V, AT)
 	add(V(0.24, 0.24, 0.24), AT(0, 0.2, -0.58), Color3.fromRGB(60, 140, 255), Enum.PartType.Ball, Enum.Material.Neon)
 end
 
+HATS.viking = function(add, V, AT)
+	local steel = Color3.fromRGB(170, 175, 185)
+	add(V(1.1, 1.1, 1.1), AT(0, 0.25, 0), steel, Enum.PartType.Ball, Enum.Material.Metal)
+	add(V(0.2, 1.15, 1.15), AT(0, 0.02, 0) * VERT, Color3.fromRGB(150, 100, 50), Enum.PartType.Cylinder, Enum.Material.Wood)
+	for _, side in ipairs({ -1, 1 }) do
+		add(V(0.22, 0.75, 0.22), AT(0.62 * side, 0.55, 0) * CFrame.Angles(0, 0, -0.6 * side), Color3.fromRGB(245, 235, 210))
+		add(V(0.16, 0.16, 0.16), AT(0.85 * side, 0.85, 0), Color3.fromRGB(245, 235, 210), Enum.PartType.Ball)
+	end
+end
+
+HATS.headphones = function(add, V, AT)
+	local dark = Color3.fromRGB(30, 30, 38)
+	add(V(1.5, 0.15, 0.25), AT(0, 0.35, 0), dark)
+	for _, side in ipairs({ -1, 1 }) do
+		add(V(0.18, 0.55, 0.18), AT(0.72 * side, 0.12, 0), dark)
+		add(V(0.25, 0.55, 0.55), AT(0.8 * side, -0.2, 0) * CFrame.Angles(0, 0, 0), Color3.fromRGB(80, 200, 255), Enum.PartType.Cylinder, Enum.Material.Neon)
+	end
+end
+
+HATS.wizard = function(add, V, AT)
+	local purple = Color3.fromRGB(90, 50, 170)
+	add(V(0.1, 1.7, 1.7), AT(0, 0.05, 0) * VERT, purple, Enum.PartType.Cylinder)
+	for i = 0, 5 do
+		local d = 0.95 - i * 0.15
+		add(V(0.3, d, d), AT(0.04 * i, 0.2 + i * 0.28, 0) * VERT, purple, Enum.PartType.Cylinder)
+	end
+	add(V(0.2, 0.2, 0.2), AT(0.24, 1.9, 0), Color3.fromRGB(255, 230, 90), Enum.PartType.Ball, Enum.Material.Neon)
+	add(V(0.16, 0.16, 0.16), AT(0.3, 0.6, -0.52), Color3.fromRGB(255, 230, 90), Enum.PartType.Ball, Enum.Material.Neon)
+end
+
 HATS.halo = function(add, V, AT)
 	local glow = Color3.fromRGB(255, 240, 120)
 	for i = 0, 9 do
@@ -176,6 +206,82 @@ function RatBuilder.attachHat(character, head, hatId, scale, topOffset)
 	end
 	builder(add, V, AT)
 	hatModel.Parent = character
+end
+
+-- ===== След за крысой =====
+function RatBuilder.attachTrail(character, trailId)
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return
+	end
+	local old = root:FindFirstChild("RatTrail")
+	if old then
+		old:Destroy()
+	end
+	for _, n in ipairs({ "TrailA", "TrailB" }) do
+		local a = root:FindFirstChild(n)
+		if a then
+			a:Destroy()
+		end
+	end
+	local info = Config.getTrail(trailId or "none")
+	if not info or not info.Colors then
+		return
+	end
+	local a0 = Instance.new("Attachment")
+	a0.Name = "TrailA"
+	a0.Position = Vector3.new(0, 0.5, 1.2)
+	a0.Parent = root
+	local a1 = Instance.new("Attachment")
+	a1.Name = "TrailB"
+	a1.Position = Vector3.new(0, -0.4, 1.2)
+	a1.Parent = root
+	local keys = {}
+	for i, c in ipairs(info.Colors) do
+		table.insert(keys, ColorSequenceKeypoint.new((i - 1) / math.max(1, #info.Colors - 1), c))
+	end
+	if #keys == 1 then
+		table.insert(keys, ColorSequenceKeypoint.new(1, info.Colors[1]))
+	end
+	local trail = Instance.new("Trail")
+	trail.Name = "RatTrail"
+	trail.Attachment0 = a0
+	trail.Attachment1 = a1
+	trail.Color = ColorSequence.new(keys)
+	trail.Lifetime = 0.7
+	trail.LightEmission = 0.8
+	trail.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 1) })
+	trail.WidthScale = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0.1) })
+	trail.Parent = root
+end
+
+-- ===== Невидимость (класс «Невидимка») =====
+function RatBuilder.setInvisible(character, on)
+	if not character then
+		return
+	end
+	for _, d in ipairs(character:GetDescendants()) do
+		if d:IsA("BasePart") and d.Name ~= "HumanoidRootPart" then
+			if on then
+				if d:GetAttribute("BaseT") == nil then
+					d:SetAttribute("BaseT", d.Transparency)
+				end
+				d.Transparency = 0.88
+			elseif d:GetAttribute("BaseT") ~= nil then
+				d.Transparency = d:GetAttribute("BaseT")
+			end
+		elseif d:IsA("Trail") or d:IsA("Sparkles") then
+			d.Enabled = not on
+		end
+	end
+	local hum = character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		if on then
+			hum.NameDisplayDistance = 0
+		else
+			hum.NameDisplayDistance = 40
+		end
+	end
 end
 
 -- ===== Крыса =====
@@ -262,14 +368,19 @@ function RatBuilder.build(player, cframe)
 	hum.JumpPower = Config.RatJumpPower
 	hum.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
 	hum.DisplayName = player.DisplayName
+	local cls = Config.getClass(player:GetAttribute("Class") or "normal")
+	if cls and cls.Id ~= "normal" then
+		hum.DisplayName = cls.Icon .. " " .. hum.DisplayName
+	end
 	if player:GetAttribute("VIP") then
-		hum.DisplayName = "👑 " .. player.DisplayName
+		hum.DisplayName = "👑 " .. hum.DisplayName
 		local sp = Instance.new("Sparkles")
 		sp.SparkleColor = Color3.fromRGB(255, 215, 80)
 		sp.Parent = body
 	end
 	hum.NameDisplayDistance = 40
 	hum.Parent = model
+	RatBuilder.attachTrail(model, player:GetAttribute("Trail"))
 
 	model:AddTag("Rat")
 	return model

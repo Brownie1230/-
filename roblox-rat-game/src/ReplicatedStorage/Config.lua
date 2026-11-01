@@ -87,6 +87,10 @@ Config.Hats = {
 	{ Id = "crown", Name = "Корона", NameEn = "Crown", Icon = "👑", Price = 250 },
 	{ Id = "halo", Name = "Нимб", NameEn = "Halo", Icon = "😇", Price = 300 },
 	{ Id = "vipcrown", Name = "Золотая VIP-корона", NameEn = "Golden VIP crown", Icon = "👑", Price = 0, VipOnly = true },
+	-- шапки за уровень (открываются сами, когда достигнешь уровня)
+	{ Id = "viking", Name = "Шлем викинга", NameEn = "Viking helmet", Icon = "⚔️", Price = 0, Level = 5 },
+	{ Id = "headphones", Name = "Наушники", NameEn = "Headphones", Icon = "🎧", Price = 0, Level = 10 },
+	{ Id = "wizard", Name = "Шляпа волшебника", NameEn = "Wizard hat", Icon = "🧙", Price = 0, Level = 20 },
 }
 
 function Config.getHat(id)
@@ -98,18 +102,97 @@ function Config.getHat(id)
 	return nil
 end
 
+-- ===== Следы за крысой (магазин) =====
+Config.Trails = {
+	{ Id = "none", Name = "Без следа", NameEn = "No trail", Icon = "🚫", Price = 0 },
+	{ Id = "sparkle", Name = "Искры", NameEn = "Sparkles", Icon = "✨", Price = 60, Colors = { Color3.fromRGB(255, 240, 150), Color3.fromRGB(255, 200, 60) } },
+	{ Id = "hearts", Name = "Сердечки", NameEn = "Hearts", Icon = "💖", Price = 120, Colors = { Color3.fromRGB(255, 130, 190), Color3.fromRGB(255, 60, 120) } },
+	{ Id = "fire", Name = "Огонь", NameEn = "Fire", Icon = "🔥", Price = 180, Colors = { Color3.fromRGB(255, 230, 80), Color3.fromRGB(255, 60, 20) } },
+	{ Id = "ice", Name = "Лёд", NameEn = "Ice", Icon = "❄️", Price = 180, Colors = { Color3.fromRGB(220, 250, 255), Color3.fromRGB(80, 170, 255) } },
+	{ Id = "rainbow", Name = "Радуга", NameEn = "Rainbow", Icon = "🌈", Price = 300, Colors = { Color3.fromRGB(255, 60, 60), Color3.fromRGB(255, 220, 60), Color3.fromRGB(60, 220, 90), Color3.fromRGB(60, 140, 255), Color3.fromRGB(200, 80, 255) } },
+	{ Id = "galaxy", Name = "Галактика", NameEn = "Galaxy", Icon = "🌌", Price = 0, VipOnly = true, Colors = { Color3.fromRGB(120, 60, 255), Color3.fromRGB(255, 80, 220), Color3.fromRGB(60, 200, 255) } },
+}
+
+-- ===== Классы крыс (способность на F) =====
+-- SpeedMult — скорость, SabotageMult — во сколько раз быстрее ломает (держать E / мини-игры)
+Config.Classes = {
+	{ Id = "normal", Name = "Обычная", NameEn = "Classic", Icon = "🐀", Price = 0, SpeedMult = 1, SabotageMult = 1 },
+	{ Id = "fast", Name = "Быстрая", NameEn = "Speedy", Icon = "⚡", Price = 150, SpeedMult = 1.12, SabotageMult = 1, Ability = "Dash", Cooldown = 12, Duration = 2.5 },
+	{ Id = "strong", Name = "Сильная", NameEn = "Tough", Icon = "💪", Price = 250, SpeedMult = 1, SabotageMult = 1.6, Ability = "Armor", Cooldown = 30, Duration = 3 },
+	{ Id = "ninja", Name = "Невидимка", NameEn = "Ninja", Icon = "🥷", Price = 400, SpeedMult = 1, SabotageMult = 1, Ability = "Invisible", Cooldown = 25, Duration = 4 },
+}
+Config.DashMultiplier = 1.8
+
+-- ===== Уровни =====
+Config.XP = { Sabotage = 10, Rescue = 15, Catch = 15, Repair = 5, RatWin = 50, ChefWin = 50, Participation = 20, Golden = 10 }
+Config.LevelUpCheese = 50 -- награда за новый уровень
+function Config.xpForLevel(level) -- сколько опыта нужно, чтобы перейти с этого уровня на следующий
+	return 100 + (level - 1) * 50
+end
+
+-- ===== События раунда (случайные) =====
+Config.EventChance = 0.35
+Config.Events = { "ChaosNight", "GoldenHour", "Turbo" }
+Config.ChaosNightMult = 1.5 -- хаос растёт в 1.5 раза быстрее
+Config.GoldenHourInterval = 12 -- золотой сыр каждые 12 сек
+Config.TurboMult = 1.25 -- все бегают быстрее
+
+-- ===== Карты =====
+-- Folder — имя папки в Workspace. Своя карта: положи её в Workspace как папку "Map".
+Config.Maps = {
+	{ Id = "Restaurant", Folder = "Map", Name = "Ресторан", NameEn = "Restaurant", Icon = "🍽️" },
+	{ Id = "Pizzeria", Folder = "MapPizzeria", Name = "Пиццерия", NameEn = "Pizzeria", Icon = "🍕" },
+}
+
+local function findIn(list, id)
+	for _, item in ipairs(list) do
+		if item.Id == id then
+			return item
+		end
+	end
+	return nil
+end
+function Config.getTrail(id)
+	return findIn(Config.Trails, id)
+end
+function Config.getClass(id)
+	return findIn(Config.Classes, id)
+end
+
+-- Активная карта раунда и фильтр «только объекты активной карты»
+function Config.activeMap()
+	local name = game:GetService("ReplicatedStorage"):GetAttribute("ActiveMap") or "Map"
+	return workspace:FindFirstChild(name)
+end
+function Config.inActiveMap(inst)
+	local m = Config.activeMap()
+	return m == nil or inst:IsDescendantOf(m)
+end
+function Config.taggedInMap(tag)
+	local list = {}
+	for _, inst in ipairs(game:GetService("CollectionService"):GetTagged(tag)) do
+		if Config.inActiveMap(inst) then
+			table.insert(list, inst)
+		end
+	end
+	return list
+end
+
 -- ===== Донат (Robux) =====
 -- 1) create.roblox.com → твоя игра → Monetization → Passes / Developer Products → Create
 -- 2) Скопируй ID товара и вставь сюда вместо 0. Пока стоит 0, кнопка покажет «скоро».
 Config.GamePasses = {
 	VIP = 0, -- 👑 VIP: золотая корона, ×2 сыра, блеск
 	DoubleCheese = 0, -- 🧀 ×2 сыра навсегда
+	AllClasses = 0, -- 🐀 все классы крыс навсегда
 }
-Config.GamePassPrices = { VIP = 199, DoubleCheese = 99 } -- только для надписи на кнопке (цену ставишь в Creator Hub)
+Config.GamePassPrices = { VIP = 199, DoubleCheese = 99, AllClasses = 149 } -- только для надписи на кнопке (цену ставишь в Creator Hub)
 Config.Products = {
-	{ Key = "Cheese500", Id = 0, Coins = 500, Price = 25 },
-	{ Key = "Cheese2500", Id = 0, Coins = 2500, Price = 99 },
-	{ Key = "Cheese10000", Id = 0, Coins = 10000, Price = 299 },
+	{ Key = "Cheese500", Kind = "cheese", Id = 0, Coins = 500, Price = 25 },
+	{ Key = "Cheese2500", Kind = "cheese", Id = 0, Coins = 2500, Price = 99 },
+	{ Key = "Cheese10000", Kind = "cheese", Id = 0, Coins = 10000, Price = 299 },
+	{ Key = "Escape", Kind = "escape", Id = 0, Coins = 100, Price = 15 }, -- 🔓 сбежать из клетки (если уже свободен — 100 сыра)
+	{ Key = "BeChef", Kind = "chef", Id = 0, Price = 25 }, -- 👨‍🍳 стать поваром в следующем раунде
 }
 
 -- ===== Бонусы =====

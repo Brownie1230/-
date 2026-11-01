@@ -18,6 +18,7 @@ local volunteerEvent = remotes:WaitForChild("ChefVolunteer")
 local fxEvent = remotes:WaitForChild("FX")
 local shopEvent = remotes:WaitForChild("ShopAction")
 local squeakEvent = remotes:WaitForChild("Squeak")
+local abilityEvent = remotes:WaitForChild("Ability")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
@@ -174,6 +175,27 @@ local coinsPill = panel(gui, {
 local coinsLabel = text(coinsPill, { Size = UDim2.fromScale(1, 1), Text = "🧀 0", TextColor3 = YELLOW })
 padding(coinsPill, 6)
 
+-- Уровень и опыт
+local levelPill = panel(gui, {
+	Position = UDim2.new(0.5, 190, 0, 52),
+	Size = UDim2.fromOffset(120, 32),
+})
+local levelLabel = text(levelPill, { Position = UDim2.fromOffset(6, 1), Size = UDim2.new(1, -12, 0, 20), Text = "⭐ 1", TextColor3 = YELLOW, ZIndex = 2 })
+local xpBg = make("Frame", levelPill, { Position = UDim2.new(0, 8, 1, -9), Size = UDim2.new(1, -16, 0, 5), BackgroundColor3 = Color3.fromRGB(60, 50, 66), BorderSizePixel = 0 })
+corner(xpBg, 3)
+local xpFill = make("Frame", xpBg, { Size = UDim2.fromScale(0, 1), BackgroundColor3 = YELLOW, BorderSizePixel = 0 })
+corner(xpFill, 3)
+
+-- Событие раунда
+local eventPill = panel(gui, {
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(0.5, -190, 0, 6),
+	Size = UDim2.fromOffset(190, 40),
+	Visible = false,
+})
+local eventLabel = text(eventPill, { Size = UDim2.fromScale(1, 1), Text = "", TextColor3 = Color3.fromRGB(255, 170, 90) })
+padding(eventPill, 6)
+
 -- ===== Лента сообщений =====
 local feed = make("Frame", gui, {
 	AnchorPoint = Vector2.new(0.5, 0),
@@ -297,6 +319,55 @@ local hintLabel = text(rolePanel, {
 	TextColor3 = Color3.fromRGB(215, 205, 220),
 })
 
+-- Способность класса (F)
+local abilityPill = panel(gui, {
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.new(0, 12, 1, -160),
+	Size = UDim2.fromOffset(290, 38),
+	Visible = false,
+})
+local abilityLabel = text(abilityPill, { Size = UDim2.fromScale(1, 1), Text = "", TextColor3 = Color3.fromRGB(150, 220, 255) })
+padding(abilityPill, 6)
+local abilityReadyAt = 0
+player:GetAttributeChangedSignal("AbilityUses"):Connect(function()
+	local cls = Config.getClass(player:GetAttribute("Class") or "normal")
+	abilityReadyAt = os.clock() + ((cls and cls.Cooldown) or 0)
+end)
+
+-- Как играть (первый раунд)
+local tutorial = panel(gui, {
+	AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.new(1, -12, 0.42, 0),
+	Size = UDim2.fromOffset(380, 0),
+	AutomaticSize = Enum.AutomaticSize.Y,
+	Visible = false,
+})
+padding(tutorial, 14)
+stroke(tutorial, YELLOW, 3)
+local tutorialLabel = text(tutorial, {
+	Size = UDim2.new(1, 0, 0, 0),
+	AutomaticSize = Enum.AutomaticSize.Y,
+	TextSize = 20,
+	TextWrapped = true,
+	RichText = true,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextYAlignment = Enum.TextYAlignment.Top,
+	Text = "",
+})
+
+-- Стрелка к ближайшему заданию
+local marker = make("BillboardGui", playerGui, {
+	Name = "TaskMarker",
+	Size = UDim2.fromOffset(230, 70),
+	StudsOffset = Vector3.new(0, 4, 0),
+	AlwaysOnTop = true,
+	MaxDistance = 1000,
+	LightInfluence = 0,
+	Enabled = false,
+	ResetOnSpawn = false,
+})
+local markerLabel = text(marker, { Size = UDim2.fromScale(1, 1), Text = "", TextColor3 = YELLOW, TextStrokeTransparency = 0 })
+
 -- ===== Слева посередине: задания (Tab) =====
 local showTasks = true
 local tasksPanel = panel(gui, {
@@ -350,24 +421,87 @@ end)
 
 local addFeedLocal -- объявлена ниже, после ленты сообщений
 
--- ===== Магазин: вкладки «Шапки» и «Донат» =====
+-- ===== Голосование за карту (лобби) =====
+local voteEvent = remotes:WaitForChild("VoteMap")
+local votePanel = panel(gui, {
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.new(0.5, 0, 1, -84),
+	Size = UDim2.fromOffset(600, 56),
+})
+padding(votePanel, 6)
+make("UIListLayout", votePanel, {
+	FillDirection = Enum.FillDirection.Horizontal,
+	HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	VerticalAlignment = Enum.VerticalAlignment.Center,
+	Padding = UDim.new(0, 10),
+})
+local voteTitle = text(votePanel, { Size = UDim2.fromOffset(200, 40), Text = "" })
+local voteButtons = {}
+for i, m in ipairs(Config.Maps) do
+	local b = button(votePanel, { LayoutOrder = i, Size = UDim2.fromOffset(180, 42), Text = "" }, Color3.fromRGB(255, 200, 90))
+	local st = stroke(b, WHITE, 0)
+	st.Transparency = 0
+	voteButtons[m.Id] = { button = b, stroke = st, map = m }
+	b.Activated:Connect(function()
+		voteEvent:FireServer(m.Id)
+	end)
+end
+
+local function mapListSet()
+	local set, n = {}, 0
+	for id in string.gmatch(ReplicatedStorage:GetAttribute("MapList") or "", "[^,]+") do
+		set[id] = true
+		n = n + 1
+	end
+	return set, n
+end
+
+local function refreshVotes()
+	local set, n = mapListSet()
+	votePanel.Visible = n > 1 and (ReplicatedStorage:GetAttribute("State") or "Lobby") == "Lobby"
+	voteTitle.Text = L("vote_title")
+	local mine = player:GetAttribute("Vote")
+	for id, info in pairs(voteButtons) do
+		info.button.Visible = set[id] == true
+		info.button.Text = ("%s %s (%d)"):format(info.map.Icon, Locale.itemName(lang(), info.map), ReplicatedStorage:GetAttribute("Votes_" .. id) or 0)
+		info.stroke.Thickness = (mine == id) and 4 or 0
+	end
+end
+
+local function activeMapName()
+	local id = ReplicatedStorage:GetAttribute("ActiveMapId")
+	for _, m in ipairs(Config.Maps) do
+		if m.Id == id then
+			return m.Icon .. " " .. Locale.itemName(lang(), m)
+		end
+	end
+	return ""
+end
+
+-- ===== Магазин: шапки, следы, классы (за сыр) и донат (Robux) =====
 local shop = panel(gui, {
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Position = UDim2.fromScale(0.5, 0.5),
-	Size = UDim2.fromOffset(580, 460),
+	Size = UDim2.fromOffset(660, 520),
 	Visible = false,
 	ZIndex = 10,
 })
-local shopCoins = text(shop, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -64, 0, 14), Size = UDim2.fromOffset(130, 32), TextColor3 = YELLOW, ZIndex = 10, Text = "" })
+local shopTitle = text(shop, { Position = UDim2.fromOffset(16, 10), Size = UDim2.new(1, -260, 0, 40), Text = "", TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 10 })
+local shopCoins = text(shop, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -64, 0, 14), Size = UDim2.fromOffset(160, 32), TextColor3 = YELLOW, ZIndex = 10, Text = "" })
 local closeShop = button(shop, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10), Size = UDim2.fromOffset(42, 42), Text = "✕", ZIndex = 10 }, RED)
-local tabHats = button(shop, { Position = UDim2.fromOffset(14, 12), Size = UDim2.fromOffset(170, 42), Text = "", ZIndex = 10 }, Color3.fromRGB(180, 130, 255))
-local tabRobux = button(shop, { Position = UDim2.fromOffset(194, 12), Size = UDim2.fromOffset(170, 42), Text = "", ZIndex = 10 }, Color3.fromRGB(80, 200, 255))
+local TABS = {
+	{ id = "hats", key = "tab_hats", color = Color3.fromRGB(180, 130, 255) },
+	{ id = "trails", key = "tab_trails", color = Color3.fromRGB(255, 140, 200) },
+	{ id = "classes", key = "tab_classes", color = Color3.fromRGB(255, 180, 70) },
+	{ id = "robux", key = "tab_robux", color = Color3.fromRGB(80, 200, 255) },
+}
 local shopTab = "hats"
+local tabButtons, lists = {}, {}
 
 local function makeList()
 	local list = make("ScrollingFrame", shop, {
-		Position = UDim2.fromOffset(12, 66),
-		Size = UDim2.new(1, -24, 1, -78),
+		Position = UDim2.fromOffset(12, 112),
+		Size = UDim2.new(1, -24, 1, -124),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 6,
@@ -376,15 +510,23 @@ local function makeList()
 		ZIndex = 10,
 	})
 	make("UIGridLayout", list, {
-		CellSize = UDim2.fromOffset(170, 140),
+		CellSize = UDim2.fromOffset(150, 150),
 		CellPadding = UDim2.fromOffset(10, 10),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 	})
 	return list
 end
-local shopList = makeList()
-local robuxList = makeList()
-robuxList.Visible = false
+
+local refreshShop
+for i, tab in ipairs(TABS) do
+	local b = button(shop, { Position = UDim2.fromOffset(14 + (i - 1) * 158, 60), Size = UDim2.fromOffset(150, 42), Text = "", ZIndex = 10 }, tab.color)
+	tabButtons[tab.id] = b
+	lists[tab.id] = makeList()
+	b.Activated:Connect(function()
+		shopTab = tab.id
+		refreshShop()
+	end)
+end
 
 local function card(list, order, icon, gold)
 	local c = make("Frame", list, {
@@ -399,24 +541,52 @@ local function card(list, order, icon, gold)
 	end
 	text(c, { Position = UDim2.fromOffset(0, 4), Size = UDim2.new(1, 0, 0, 40), Text = icon, ZIndex = 10 })
 	local title = text(c, { Position = UDim2.fromOffset(6, 46), Size = UDim2.new(1, -12, 0, 24), Text = "", ZIndex = 10 })
-	local desc = text(c, { Position = UDim2.fromOffset(6, 70), Size = UDim2.new(1, -12, 0, 18), Font = Enum.Font.GothamMedium, TextColor3 = Color3.fromRGB(210, 200, 220), Text = "", ZIndex = 10 })
-	local b = button(c, { Position = UDim2.new(0, 10, 1, -44), Size = UDim2.new(1, -20, 0, 36), Text = "", ZIndex = 10 })
+	local desc = text(c, { Position = UDim2.fromOffset(6, 72), Size = UDim2.new(1, -12, 0, 26), Font = Enum.Font.GothamMedium, TextWrapped = true, TextColor3 = Color3.fromRGB(210, 200, 220), Text = "", ZIndex = 10 })
+	local b = button(c, { Position = UDim2.new(0, 8, 1, -42), Size = UDim2.new(1, -16, 0, 34), Text = "", ZIndex = 10 })
 	return title, desc, b
 end
 
--- шапки за сыр
-local shopCards = {}
-for i, hat in ipairs(Config.Hats) do
-	local title, desc, buy = card(shopList, i, hat.Icon, hat.VipOnly)
-	desc.Visible = false
-	shopCards[hat.Id] = { button = buy, hat = hat, nameLabel = title }
+local function setOf(attr)
+	local set = {}
+	for id in string.gmatch(player:GetAttribute(attr) or "", "[^,]+") do
+		set[id] = true
+	end
+	return set
+end
+
+-- товары за сыр: одинаковая логика для шапок, следов и классов
+local CATS = {
+	{ tab = "hats", cat = "hat", items = Config.Hats, owned = "OwnedHats", current = "Hat", equipKey = "equip", equippedKey = "equipped" },
+	{ tab = "trails", cat = "trail", items = Config.Trails, owned = "OwnedTrails", current = "Trail", equipKey = "equip", equippedKey = "equipped" },
+	{ tab = "classes", cat = "class", items = Config.Classes, owned = "OwnedClasses", current = "Class", equipKey = "select", equippedKey = "selected" },
+}
+local itemCards = {}
+for _, c in ipairs(CATS) do
+	for i, item in ipairs(c.items) do
+		local title, desc, b = card(lists[c.tab], i, item.Icon, item.VipOnly)
+		local info = { cat = c, item = item, title = title, desc = desc, button = b }
+		table.insert(itemCards, info)
+		b.Activated:Connect(function()
+			local owned = setOf(c.owned)
+			if owned[item.Id] then
+				shopEvent:FireServer("equip", item.Id, c.cat)
+			elseif item.VipOnly then
+				shopTab = "robux"
+				refreshShop()
+			elseif item.Level and (player:GetAttribute("Level") or 1) < item.Level then
+				addFeedLocal(L("level_lock", item.Level))
+			else
+				shopEvent:FireServer("buy", item.Id, c.cat)
+			end
+		end)
+	end
 end
 
 -- донат за Robux
 local MarketplaceService = game:GetService("MarketplaceService")
 local robuxCards = {}
 local function addRobuxCard(order, icon, kind, key, id, price, gold)
-	local title, desc, b = card(robuxList, order, icon, gold)
+	local title, desc, b = card(lists.robux, order, icon, gold)
 	local info = { kind = kind, key = key, id = id, price = price, title = title, desc = desc, button = b }
 	table.insert(robuxCards, info)
 	b.Activated:Connect(function()
@@ -434,47 +604,61 @@ local function addRobuxCard(order, icon, kind, key, id, price, gold)
 end
 addRobuxCard(1, "👑", "pass", "VIP", Config.GamePasses.VIP, Config.GamePassPrices.VIP, true)
 addRobuxCard(2, "🧀", "pass", "DoubleCheese", Config.GamePasses.DoubleCheese, Config.GamePassPrices.DoubleCheese, false)
-for i, prod in ipairs(Config.Products) do
-	local info = addRobuxCard(2 + i, "💰", "product", prod.Key, prod.Id, prod.Price, false)
-	info.coins = prod.Coins
-end
-
-local function ownedSet()
-	local set = {}
-	for id in string.gmatch(player:GetAttribute("OwnedHats") or "", "[^,]+") do
-		set[id] = true
+addRobuxCard(3, "🐀", "pass", "AllClasses", Config.GamePasses.AllClasses, Config.GamePassPrices.AllClasses, false)
+local escapeProduct = nil
+local order = 4
+for _, prod in ipairs(Config.Products) do
+	if prod.Kind == "escape" then
+		escapeProduct = prod
+	elseif prod.Kind == "chef" then
+		addRobuxCard(order, "👨‍🍳", "product", "BeChef", prod.Id, prod.Price, false)
+		order = order + 1
+	else
+		local info = addRobuxCard(order, "💰", "product", prod.Key, prod.Id, prod.Price, prod.Coins >= 10000)
+		info.coins = prod.Coins
+		order = order + 1
 	end
-	return set
 end
 
-local function refreshShop()
-	local owned = ownedSet()
+refreshShop = function()
 	local coins = player:GetAttribute("Coins") or 0
-	local current = player:GetAttribute("Hat")
+	local level = player:GetAttribute("Level") or 1
 	shopCoins.Text = "🧀 " .. coins
-	tabHats.Text = L("tab_hats")
-	tabRobux.Text = L("tab_robux")
-	tabHats.BackgroundTransparency = shopTab == "hats" and 0 or 0.5
-	tabRobux.BackgroundTransparency = shopTab == "robux" and 0 or 0.5
-	shopList.Visible = shopTab == "hats"
-	robuxList.Visible = shopTab == "robux"
-	for id, info in pairs(shopCards) do
-		local b = info.button
-		info.nameLabel.Text = Locale.hatName(lang(), info.hat)
-		if current == id then
-			b.Text = L("equipped")
+	shopTitle.Text = L("shop_main")
+	for _, tab in ipairs(TABS) do
+		tabButtons[tab.id].Text = L(tab.key)
+		tabButtons[tab.id].BackgroundTransparency = (shopTab == tab.id) and 0 or 0.55
+		lists[tab.id].Visible = shopTab == tab.id
+	end
+	for _, info in ipairs(itemCards) do
+		local item, c, b = info.item, info.cat, info.button
+		local owned = setOf(c.owned)
+		local current = player:GetAttribute(c.current)
+		info.title.Text = Locale.itemName(lang(), item)
+		if c.cat == "class" then
+			info.desc.Text = L("class_" .. item.Id .. "_desc")
+		elseif item.Level then
+			info.desc.Text = "⭐ " .. item.Level
+		else
+			info.desc.Text = ""
+		end
+		if current == item.Id then
+			b.Text = L(c.equippedKey)
 			b.BackgroundColor3 = Color3.fromRGB(120, 120, 130)
-		elseif owned[id] then
-			b.Text = L("equip")
+		elseif owned[item.Id] then
+			b.Text = L(c.equipKey)
 			b.BackgroundColor3 = GREEN
-		elseif info.hat.VipOnly then
+		elseif item.VipOnly then
 			b.Text = L("vip_only")
 			b.BackgroundColor3 = Color3.fromRGB(255, 200, 60)
-		elseif coins >= info.hat.Price then
-			b.Text = L("buy", info.hat.Price)
+		elseif item.Level and level < item.Level then
+			b.Text = L("level_lock", item.Level)
+			b.BackgroundColor3 = Color3.fromRGB(90, 80, 95)
+		elseif coins >= item.Price then
+			b.Text = L("buy", item.Price)
 			b.BackgroundColor3 = YELLOW
 		else
-			b.Text = L("locked", info.hat.Price)
+			b.Text = L("locked", item.Price)
 			b.BackgroundColor3 = Color3.fromRGB(90, 80, 95)
 		end
 	end
@@ -486,11 +670,18 @@ local function refreshShop()
 		elseif info.key == "DoubleCheese" then
 			info.title.Text = L("double_title")
 			info.desc.Text = L("double_desc")
+		elseif info.key == "AllClasses" then
+			info.title.Text = L("allclasses_title")
+			info.desc.Text = L("allclasses_desc")
+		elseif info.key == "BeChef" then
+			info.title.Text = L("bechef_title")
+			info.desc.Text = L("bechef_desc")
 		else
 			info.title.Text = L("pack_title", info.coins)
 			info.desc.Text = L("pack_desc")
 		end
-		if info.kind == "pass" and player:GetAttribute(info.key) then
+		local done = (info.kind == "pass" and player:GetAttribute(info.key)) or (info.key == "BeChef" and player:GetAttribute("ChefNext"))
+		if done then
 			b.Text = L("owned")
 			b.BackgroundColor3 = Color3.fromRGB(120, 120, 130)
 		elseif info.id <= 0 then
@@ -503,26 +694,6 @@ local function refreshShop()
 	end
 end
 
-for id, info in pairs(shopCards) do
-	info.button.Activated:Connect(function()
-		if ownedSet()[id] then
-			shopEvent:FireServer("equip", id)
-		elseif info.hat.VipOnly then
-			shopTab = "robux"
-			refreshShop()
-		else
-			shopEvent:FireServer("buy", id)
-		end
-	end)
-end
-tabHats.Activated:Connect(function()
-	shopTab = "hats"
-	refreshShop()
-end)
-tabRobux.Activated:Connect(function()
-	shopTab = "robux"
-	refreshShop()
-end)
 shopButton.Activated:Connect(function()
 	shop.Visible = not shop.Visible
 	if shop.Visible then
@@ -532,6 +703,23 @@ shopButton.Activated:Connect(function()
 end)
 closeShop.Activated:Connect(function()
 	shop.Visible = false
+end)
+
+-- ===== Кнопка «Сбежать из клетки» (Robux) =====
+local escapeButton = button(gui, {
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.new(0.5, 0, 1, -150),
+	Size = UDim2.fromOffset(300, 56),
+	Text = "",
+	Visible = false,
+	ZIndex = 6,
+}, GREEN)
+escapeButton.Activated:Connect(function()
+	if not escapeProduct or escapeProduct.Id <= 0 then
+		addFeedLocal(L("not_configured"))
+		return
+	end
+	MarketplaceService:PromptProductPurchase(player, escapeProduct.Id)
 end)
 
 -- ===== Кнопки для телефона =====
@@ -546,6 +734,11 @@ local touchBar = make("Frame", gui, {
 local sprintButton = button(touchBar, { Position = UDim2.fromOffset(90, 0), Size = UDim2.fromOffset(80, 80), Text = "🏃" }, Color3.fromRGB(100, 160, 255))
 corner(sprintButton, 40)
 local squeakButton = button(touchBar, { Position = UDim2.fromOffset(0, 10), Size = UDim2.fromOffset(70, 70), Text = "🐭" }, Color3.fromRGB(255, 180, 200))
+local abilityButton = button(touchBar, { Position = UDim2.fromOffset(0, -84), Size = UDim2.fromOffset(80, 80), Text = "⚡" }, Color3.fromRGB(150, 220, 255))
+corner(abilityButton, 40)
+abilityButton.Activated:Connect(function()
+	abilityEvent:FireServer()
+end)
 sprintButton.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
 		sprintHeld = true
@@ -570,6 +763,8 @@ UserInputService.InputBegan:Connect(function(input, processed)
 		showTasks = not showTasks
 	elseif input.KeyCode == Enum.KeyCode.Q then
 		squeakEvent:FireServer()
+	elseif input.KeyCode == Enum.KeyCode.F or input.KeyCode == Enum.KeyCode.ButtonX then
+		abilityEvent:FireServer()
 	end
 end)
 UserInputService.InputEnded:Connect(function(input)
@@ -713,7 +908,7 @@ local function role()
 end
 
 local function sortedStations()
-	local list = CollectionService:GetTagged("Sabotage")
+	local list = Config.taggedInMap("Sabotage")
 	table.sort(list, function(a, b)
 		return (a:GetAttribute("TaskName") or a.Name) < (b:GetAttribute("TaskName") or b.Name)
 	end)
@@ -727,18 +922,24 @@ local function refreshPrompts()
 	local lg = lang()
 	local caught = player:GetAttribute("Caught") == true
 	local busy = player:GetAttribute("LocalFreeze") == true
+	local cls = Config.getClass(player:GetAttribute("Class") or "normal") or Config.Classes[1]
 	for _, st in ipairs(CollectionService:GetTagged("Sabotage")) do
+		local here = Config.inActiveMap(st)
 		local broken = st:GetAttribute("Broken") == true
 		local sab = st:FindFirstChild("SabotagePrompt")
 		local rep = st:FindFirstChild("RepairPrompt")
 		local name = Locale.taskName(lg, st)
 		if sab then
-			sab.Enabled = r == "Rat" and not caught and not broken and not busy
+			sab.Enabled = here and r == "Rat" and not caught and not broken and not busy
+			if not st:GetAttribute("MiniGame") then
+				-- «Сильная» крыса держит E меньше
+				sab.HoldDuration = (st:GetAttribute("HoldTime") or Config.DefaultSabotageTime) / (cls.SabotageMult or 1)
+			end
 			sab.ActionText = L("prompt_sabotage")
 			sab.ObjectText = name
 		end
 		if rep then
-			rep.Enabled = r == "Chef" and broken
+			rep.Enabled = here and r == "Chef" and broken
 			rep.ActionText = L("prompt_repair")
 			rep.ObjectText = name
 		end
@@ -751,7 +952,7 @@ local function refreshPrompts()
 				DepthMode = Enum.HighlightDepthMode.Occluded,
 			})
 		end
-		hl.Enabled = (r == "Rat" and not broken) or (r == "Chef" and broken)
+		hl.Enabled = here and ((r == "Rat" and not broken) or (r == "Chef" and broken))
 		if r == "Chef" then
 			hl.OutlineColor = Color3.fromRGB(255, 80, 80)
 		else
@@ -761,7 +962,7 @@ local function refreshPrompts()
 	for _, cage in ipairs(CollectionService:GetTagged("Cage")) do
 		local fp = cage:FindFirstChild("FreePrompt")
 		if fp then
-			fp.Enabled = r == "Rat" and not caught
+			fp.Enabled = Config.inActiveMap(cage) and r == "Rat" and not caught
 			fp.ActionText = L("prompt_free")
 			fp.ObjectText = L("cage")
 		end
@@ -816,11 +1017,11 @@ local function showRoleCard()
 	if r == "Rat" then
 		roleCardTitle.Text = L("you_rat")
 		roleCardTitle.TextColor3 = YELLOW
-		roleCardGoal.Text = L("goal_rat")
+		roleCardGoal.Text = L("goal_rat") .. "  " .. L("map_is", activeMapName())
 	elseif r == "Chef" then
 		roleCardTitle.Text = L("you_chef")
 		roleCardTitle.TextColor3 = Color3.fromRGB(255, 140, 120)
-		roleCardGoal.Text = L("goal_chef")
+		roleCardGoal.Text = L("goal_chef") .. "  " .. L("map_is", activeMapName())
 	else
 		roleCard.Visible = false
 		return
@@ -911,7 +1112,7 @@ RunService.Heartbeat:Connect(function(dt)
 			statusLabel.Text = L("waiting")
 		end
 	elseif state == "Intro" then
-		statusLabel.Text = L("get_ready")
+		statusLabel.Text = activeMapName()
 	elseif state == "Playing" then
 		statusLabel.Text = "⏱ " .. fmtTime(t)
 		if t <= 30 then
@@ -942,6 +1143,13 @@ RunService.Heartbeat:Connect(function(dt)
 		shop.Visible = false
 	end
 	coinsLabel.Text = "🧀 " .. (player:GetAttribute("Coins") or 0)
+	levelLabel.Text = "⭐ " .. (player:GetAttribute("Level") or 1)
+	xpFill.Size = UDim2.fromScale(math.clamp((player:GetAttribute("XP") or 0) / math.max(1, player:GetAttribute("XPNeed") or 100), 0, 1), 1)
+	local ev = ReplicatedStorage:GetAttribute("Event") or ""
+	eventPill.Visible = ev ~= "" and (state == "Intro" or state == "Playing")
+	if ev ~= "" then
+		eventLabel.Text = L("ev_" .. ev)
+	end
 
 	-- роль
 	if r == "Rat" then
@@ -975,13 +1183,69 @@ RunService.Heartbeat:Connect(function(dt)
 	squeakButton.Visible = r == "Rat"
 	tasksPanel.Visible = showTasks and (r == "Rat" or r == "Chef") and state == "Playing"
 
+	-- способность класса
+	local cls = Config.getClass(player:GetAttribute("Class") or "normal") or Config.Classes[1]
+	local hasAbility = r == "Rat" and cls.Ability ~= nil and state == "Playing" and not caught
+	abilityPill.Visible = hasAbility
+	abilityButton.Visible = hasAbility
+	if hasAbility then
+		local left = abilityReadyAt - os.clock()
+		local abilityName = L("ability_" .. cls.Ability)
+		if left > 0 then
+			abilityLabel.Text = ("⏳ %d • %s"):format(math.ceil(left), abilityName)
+			abilityLabel.TextColor3 = Color3.fromRGB(170, 160, 180)
+			abilityButton.Text = tostring(math.ceil(left))
+		else
+			abilityLabel.Text = "F • " .. abilityName
+			abilityLabel.TextColor3 = Color3.fromRGB(150, 220, 255)
+			abilityButton.Text = cls.Icon
+		end
+	end
+
+	-- сбежать из клетки за Robux
+	escapeButton.Visible = r == "Rat" and caught and state == "Playing" and escapeProduct ~= nil
+	if escapeButton.Visible then
+		escapeButton.Text = L("escape_btn", escapeProduct.Price)
+	end
+
+	-- «Как играть» в первом раунде
+	local firstRound = not player:GetAttribute("TutorialDone")
+	local showTut = firstRound and state == "Playing" and (r == "Rat" or r == "Chef") and t > Config.RoundTime - 35
+	tutorial.Visible = showTut
+	if showTut then
+		local p = (r == "Rat") and "tut_rat" or "tut_chef"
+		tutorialLabel.Text = ("<b>%s</b>\n%s\n%s\n%s\n%s"):format(L("tut_title"), L(p .. "1"), L(p .. "2"), L(p .. "3"), L(p .. "4"))
+	end
+
 	accum = accum + dt
 	if accum >= 0.5 then
 		accum = 0
 		refreshPrompts()
 		refreshTasks()
+		refreshVotes()
 		if shop.Visible then
 			refreshShop()
+		end
+		-- стрелка к ближайшему заданию: крысе — что сломать, повару — что починить
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local target, best = nil, math.huge
+		if root and state == "Playing" and ((r == "Rat" and not caught) or r == "Chef") then
+			for _, st in ipairs(Config.taggedInMap("Sabotage")) do
+				local broken = st:GetAttribute("Broken") == true
+				if (r == "Rat" and not broken) or (r == "Chef" and broken) then
+					local d = (st.Position - root.Position).Magnitude
+					if d < best then
+						target, best = st, d
+					end
+				end
+			end
+		end
+		marker.Enabled = target ~= nil and best > 8
+		if target then
+			marker.Adornee = target
+			local icon = (r == "Chef") and "🔧" or "💥"
+			markerLabel.Text = ("%s %s\n⬇ %s"):format(icon, Locale.taskName(lang(), target), L("marker_dist", math.floor(best)))
+			markerLabel.TextColor3 = (r == "Chef") and Color3.fromRGB(255, 120, 110) or YELLOW
 		end
 	end
 end)

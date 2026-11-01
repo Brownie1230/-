@@ -27,6 +27,8 @@ local volunteerEvent = makeRemote("ChefVolunteer")
 local fxEvent = makeRemote("FX")
 local squeakEvent = makeRemote("Squeak")
 local languageEvent = makeRemote("SetLanguage")
+local abilityEvent = makeRemote("Ability")
+local voteEvent = makeRemote("VoteMap")
 makeRemote("ShopAction")
 makeRemote("MiniGame")
 
@@ -55,9 +57,30 @@ ReplicatedStorage:SetAttribute("State", "Lobby")
 ReplicatedStorage:SetAttribute("TimeLeft", 0)
 ReplicatedStorage:SetAttribute("Chaos", 0)
 
--- Нет своей карты? Построим тестовый ресторан
+-- Нет своей карты? Построим ресторан и пиццерию
 if not workspace:FindFirstChild("Map") then
 	TestMapBuilder.build()
+end
+
+-- Какие карты есть (для голосования)
+local function availableMaps()
+	local list = {}
+	for _, m in ipairs(Config.Maps) do
+		if workspace:FindFirstChild(m.Folder) then
+			table.insert(list, m)
+		end
+	end
+	return list
+end
+do
+	local ids = {}
+	for _, m in ipairs(availableMaps()) do
+		table.insert(ids, m.Id)
+	end
+	ReplicatedStorage:SetAttribute("MapList", table.concat(ids, ","))
+	local first = availableMaps()[1]
+	ReplicatedStorage:SetAttribute("ActiveMap", first and first.Folder or "Map")
+	ReplicatedStorage:SetAttribute("ActiveMapId", first and first.Id or "")
 end
 
 local state = "Lobby"
@@ -67,6 +90,9 @@ local roundCoins = {}
 local lastSqueak = {}
 local goldenCheese = nil
 local nextGolden = 0
+local currentEvent = nil
+local lastAbility = {}
+local votes = {}
 
 local function setState(s)
 	state = s
@@ -93,7 +119,12 @@ local function getRoot(model)
 end
 
 local function getSpawn(tag)
-	local list = CollectionService:GetTagged(tag)
+	local list
+	if tag == "LobbySpawn" then
+		list = CollectionService:GetTagged(tag)
+	else
+		list = Config.taggedInMap(tag) -- только на карте этого раунда
+	end
 	if #list == 0 then
 		return nil
 	end
@@ -137,11 +168,19 @@ local function refreshSpeed(player)
 		else
 			speed = Config.RatWalkSpeed
 		end
+		local cls = DataService.getClass(player)
+		speed = speed * (cls.SpeedMult or 1)
+		if player:GetAttribute("Dashing") then
+			speed = speed * Config.DashMultiplier
+		end
 	elseif role == "Chef" then
 		speed = Config.ChefWalkSpeed
 		if alarmOn then
 			speed = speed + Config.ChefRageBonus
 		end
+	end
+	if currentEvent == "Turbo" and (role == "Rat" or role == "Chef") then
+		speed = speed * Config.TurboMult
 	end
 	player:SetAttribute("BaseSpeed", speed)
 	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
@@ -164,6 +203,7 @@ local function reward(player, kind)
 		label = label .. " (×" .. mult .. ")"
 	end
 	fxEvent:FireClient(player, "coins", amount, label)
+	DataService.addXP(player, Config.XP[kind])
 end
 
 local function endRound(who, reason)
@@ -176,6 +216,9 @@ end
 local function addChaos(amount)
 	if state ~= "Playing" then
 		return
+	end
+	if currentEvent == "ChaosNight" and amount > 0 then
+		amount = amount * Config.ChaosNightMult
 	end
 	local chaos = math.clamp((ReplicatedStorage:GetAttribute("Chaos") or 0) + amount, 0, Config.ChaosToWin)
 	ReplicatedStorage:SetAttribute("Chaos", chaos)
@@ -219,6 +262,9 @@ local function refreshHat(player)
 	elseif role ~= "Chef" then
 		RatBuilder.attachHat(character, head, hatId, 1.15, CFrame.new(0, head.Size.Y / 2, 0))
 	end
+	if role ~= "Chef" then
+		RatBuilder.attachTrail(character, DataService.getTrail(player))
+	end
 end
 
 local function fxPlayer(player, kind, a, b)
@@ -244,6 +290,20 @@ local ctx = {
 	end,
 	onCaught = function(player)
 		SabotageService.cancelFor(player)
+	end,
+	refreshClass = function(player)
+		refreshSpeed(player)
+	end,
+	canEscape = function(player)
+		return state == "Playing" and player:GetAttribute("Role") == "Rat" and player:GetAttribute("Caught") == true
+	end,
+	escape = function(player)
+		ChefService.release(player)
+		local root = getRoot(player.Character)
+		if root then
+			fxAll("rescue", root.Position)
+		end
+		notifyAll("good", "escape_done", player.DisplayName)
 	end,
 }
 DataService.init(ctx)
@@ -277,6 +337,9 @@ spawnPlayer = function(player)
 	if role == "Rat" then
 		player:SetAttribute("Caught", false)
 		player:SetAttribute("Stunned", false)
+		player:SetAttribute("Dashing", false)
+		player:SetAttribute("Armored", false)
+		player:SetAttribute("Invisible", false)
 		player:SetAttribute("Hunger", Config.HungerMax)
 		local rat = RatBuilder.build(player, spawnPoint("RatSpawn"))
 		player.Character = rat
@@ -389,6 +452,122 @@ squeakEvent.OnServerEvent:Connect(function(player)
 	end
 end)
 
+-- ===== Способности классов (клавиша F) =====
+local ABILITY_FLAG = { Dash = "Dashing", Armor = "Armored", Invisible = "Invisible" }
+abilityEvent.OnServerEvent:Connect(function(player)
+	if state ~= "Playing" or player:GetAttribute("Role") ~= "Rat" or player:GetAttribute("Caught") then
+		return
+	end
+	local cls = DataService.getClass(player)
+	local flag = cls.Ability and ABILITY_FLAG[cls.Ability]
+	if not flag then
+		return
+	end
+	local now = os.clock()
+	if (lastAbility[player] or -1000) + cls.Cooldown > now then
+		return
+	end
+	lastAbility[player] = now
+	local character = player.Character
+	player:SetAttribute(flag, true)
+	player:SetAttribute("AbilityUses", (player:GetAttribute("AbilityUses") or 0) + 1)
+	if cls.Ability == "Invisible" then
+		RatBuilder.setInvisible(character, true)
+	end
+	refreshSpeed(player)
+	if character then
+		fxAll("ability", character, cls.Ability)
+	end
+	notifyPlayer(player, "good", "ability_" .. cls.Ability)
+	task.delay(cls.Duration, function()
+		if not player.Parent then
+			return
+		end
+		player:SetAttribute(flag, false)
+		if cls.Ability == "Invisible" and player.Character == character then
+			RatBuilder.setInvisible(character, false)
+		end
+		refreshSpeed(player)
+	end)
+end)
+
+-- ===== Голосование за карту =====
+local function publishVotes()
+	local counts = {}
+	for _, m in ipairs(availableMaps()) do
+		counts[m.Id] = 0
+	end
+	for p, id in pairs(votes) do
+		if p.Parent and counts[id] then
+			counts[id] = counts[id] + 1
+		end
+	end
+	for id, c in pairs(counts) do
+		ReplicatedStorage:SetAttribute("Votes_" .. id, c)
+	end
+end
+publishVotes()
+
+voteEvent.OnServerEvent:Connect(function(player, mapId)
+	if state ~= "Lobby" or type(mapId) ~= "string" then
+		return
+	end
+	for _, m in ipairs(availableMaps()) do
+		if m.Id == mapId then
+			votes[player] = mapId
+			player:SetAttribute("Vote", mapId)
+			publishVotes()
+			return
+		end
+	end
+end)
+
+local function chooseMap()
+	local maps = availableMaps()
+	if #maps == 0 then
+		return
+	end
+	local counts = {}
+	for p, id in pairs(votes) do
+		if p.Parent then
+			counts[id] = (counts[id] or 0) + 1
+		end
+	end
+	local best, bestCount = {}, -1
+	for _, m in ipairs(maps) do
+		local c = counts[m.Id] or 0
+		if c > bestCount then
+			best, bestCount = { m }, c
+		elseif c == bestCount then
+			table.insert(best, m)
+		end
+	end
+	local chosen = best[math.random(#best)]
+	ReplicatedStorage:SetAttribute("ActiveMap", chosen.Folder)
+	ReplicatedStorage:SetAttribute("ActiveMapId", chosen.Id)
+	votes = {}
+	for _, p in ipairs(Players:GetPlayers()) do
+		p:SetAttribute("Vote", nil)
+	end
+	publishVotes()
+	return chosen
+end
+
+-- ===== Случайное событие раунда =====
+local function pickEvent()
+	local forced = ReplicatedStorage:GetAttribute("ForceEvent") -- для проверки: поставь атрибут вручную
+	if forced == "none" then
+		currentEvent = nil
+	elseif type(forced) == "string" and forced ~= "" then
+		currentEvent = forced
+	elseif math.random() < Config.EventChance then
+		currentEvent = Config.Events[math.random(#Config.Events)]
+	else
+		currentEvent = nil
+	end
+	ReplicatedStorage:SetAttribute("Event", currentEvent or "")
+end
+
 -- ===== Игроки =====
 volunteerEvent.OnServerEvent:Connect(function(player, wants)
 	player:SetAttribute("WantsChef", wants == true)
@@ -435,6 +614,9 @@ Players.PlayerRemoving:Connect(function(player)
 	ChefService.forget(player)
 	SabotageService.forget(player)
 	MonetizationService.forget(player)
+	lastAbility[player] = nil
+	votes[player] = nil
+	publishVotes()
 	task.delay(0.5, function()
 		if state == "Playing" then
 			checkAllCaught()
@@ -446,17 +628,22 @@ local function assignRoles()
 	local players = Players:GetPlayers()
 	local chef = nil
 	if #players >= Config.HumanChefMinPlayers then
-		local volunteers = {}
+		local volunteers, paid = {}, {}
 		for _, p in ipairs(players) do
-			if p:GetAttribute("WantsChef") then
+			if DataService.isChefNext(p) then
+				table.insert(paid, p)
+			elseif p:GetAttribute("WantsChef") then
 				table.insert(volunteers, p)
 			end
 		end
 		local pool = players
-		if #volunteers > 0 then
+		if #paid > 0 then
+			pool = paid
+		elseif #volunteers > 0 then
 			pool = volunteers
 		end
 		chef = pool[math.random(#pool)]
+		DataService.clearChefNext(chef)
 	end
 	for _, p in ipairs(players) do
 		if p == chef then
@@ -492,6 +679,7 @@ local function giveResults()
 		if role == "Rat" or role == "Chef" then
 			local won = (role == "Rat" and ratsWon) or (role == "Chef" and not ratsWon)
 			reward(p, "Participation")
+			DataService.markTutorial(p)
 			if won then
 				if role == "Rat" then
 					reward(p, "RatWin")
@@ -597,6 +785,9 @@ while true do
 		winner, winReason = nil, nil
 		alarmOn = false
 		roundCoins = {}
+		lastAbility = {}
+		chooseMap()
+		pickEvent()
 		SabotageService.reset()
 		ChefService.reset()
 		setState("Intro")
@@ -611,9 +802,16 @@ while true do
 
 		-- РАУНД
 		setState("Playing")
-		nextGolden = os.clock() + 25
+		if currentEvent == "GoldenHour" then
+			nextGolden = os.clock() + 5
+		else
+			nextGolden = os.clock() + 25
+		end
 		for _, p in ipairs(Players:GetPlayers()) do
 			refreshSpeed(p)
+		end
+		if currentEvent then
+			notifyAll("banner", "event_" .. currentEvent)
 		end
 		if chef and chef.Parent then
 			notifyAll("info", "chef_is", chef.DisplayName)
@@ -631,7 +829,11 @@ while true do
 			hungerTick()
 			SabotageService.dripTick()
 			if os.clock() >= nextGolden then
-				nextGolden = os.clock() + Config.GoldenCheeseInterval
+				if currentEvent == "GoldenHour" then
+					nextGolden = os.clock() + Config.GoldenHourInterval
+				else
+					nextGolden = os.clock() + Config.GoldenCheeseInterval
+				end
 				spawnGolden()
 			end
 			if chef and not chef.Parent then
@@ -653,6 +855,8 @@ while true do
 		ReplicatedStorage:SetAttribute("Winner", winner)
 		ChefAI.stop()
 		removeGolden()
+		currentEvent = nil
+		ReplicatedStorage:SetAttribute("Event", "")
 		SabotageService.reset()
 		giveResults()
 		for t = Config.EndTime, 1, -1 do

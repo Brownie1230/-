@@ -49,8 +49,13 @@ function ChefService.catchRat(rat, catcher)
 		return false
 	end
 
+	if rat:GetAttribute("Armored") then
+		ctx.notifyAll("info", "armor_block", rat.DisplayName)
+		ctx.fxAll("repair", root.Position)
+		return false
+	end
 	local cage, best = nil, math.huge
-	for _, c in ipairs(CollectionService:GetTagged("Cage")) do
+	for _, c in ipairs(Config.taggedInMap("Cage")) do
 		local d = (c.Position - root.Position).Magnitude
 		if d < best then
 			cage, best = c, d

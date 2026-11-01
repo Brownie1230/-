@@ -32,18 +32,20 @@ local function isFreeRat(player)
 	return player:GetAttribute("Role") == "Rat" and not player:GetAttribute("Caught")
 end
 
-local function setLights(on)
+local function setLights(on, onlyMap)
 	for _, lamp in ipairs(CollectionService:GetTagged("RoomLight")) do
-		for _, l in ipairs(lamp:GetDescendants()) do
-			if l:IsA("Light") then
-				l.Enabled = on
+		if not onlyMap or lamp:IsDescendantOf(onlyMap) then
+			for _, l in ipairs(lamp:GetDescendants()) do
+				if l:IsA("Light") then
+					l.Enabled = on
+				end
 			end
-		end
-		if lamp:IsA("BasePart") then
-			if on then
-				lamp.Material = Enum.Material.Neon
-			else
-				lamp.Material = Enum.Material.SmoothPlastic
+			if lamp:IsA("BasePart") then
+				if on then
+					lamp.Material = Enum.Material.Neon
+				else
+					lamp.Material = Enum.Material.SmoothPlastic
+				end
 			end
 		end
 	end
@@ -69,17 +71,21 @@ local function setEffects(station, broken)
 	end
 
 	if station:GetAttribute("Effect") == "Lights" then
+		local mapFolder = Config.activeMap()
+		if mapFolder and not station:IsDescendantOf(mapFolder) then
+			mapFolder = nil
+		end
 		if broken then
 			-- свет мигает и гаснет
 			task.spawn(function()
 				for i = 1, 6 do
-					setLights(i % 2 == 0)
+					setLights(i % 2 == 0, mapFolder)
 					task.wait(0.12)
 				end
-				setLights(not station:GetAttribute("Broken"))
+				setLights(not station:GetAttribute("Broken"), mapFolder)
 			end)
 		else
-			setLights(true)
+			setLights(true, mapFolder)
 		end
 	end
 end
@@ -94,7 +100,7 @@ local function closeMiniGamesFor(station)
 end
 
 function SabotageService.sabotage(station, player)
-	if not ctx.isPlaying() or not isFreeRat(player) then
+	if not ctx.isPlaying() or not isFreeRat(player) or not Config.inActiveMap(station) then
 		return
 	end
 	if station:GetAttribute("Broken") then
@@ -190,7 +196,7 @@ end
 -- ===== Служебное =====
 function SabotageService.getBroken()
 	local list = {}
-	for _, station in ipairs(CollectionService:GetTagged("Sabotage")) do
+	for _, station in ipairs(Config.taggedInMap("Sabotage")) do
 		if station:GetAttribute("Broken") then
 			table.insert(list, station)
 		end

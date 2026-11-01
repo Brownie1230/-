@@ -64,6 +64,14 @@ local ConfigMod = M.require(M.ReplicatedStorage.Config)
 ConfigMod.GamePasses.VIP = 111
 ConfigMod.GamePasses.DoubleCheese = 222
 ConfigMod.Products[1].Id = 501
+ConfigMod.GamePasses.AllClasses = 333
+for _, prod in ipairs(ConfigMod.Products) do
+	if prod.Kind == "escape" then
+		prod.Id = 601
+	elseif prod.Kind == "chef" then
+		prod.Id = 602
+	end
+end
 local CS = M.CollectionService
 local RS = M.ReplicatedStorage
 local getSignal = M.getSignal
@@ -104,7 +112,7 @@ local function descendants(inst, pred)
 end
 
 local function station(name)
-	for _, s in ipairs(CS:GetTagged("Sabotage")) do
+	for _, s in ipairs(ConfigMod.taggedInMap("Sabotage")) do
 		if s.Name == name then
 			return s
 		end
@@ -305,11 +313,13 @@ M.runScript(gm, nil)
 advance(1)
 check(M.workspace:FindFirstChild("Map") ~= nil, "map built")
 check(RS:FindFirstChild("Remotes") ~= nil, "remotes created")
-check(#CS:GetTagged("Sabotage") == 13, "13 stations, got " .. #CS:GetTagged("Sabotage"))
-check(#CS:GetTagged("GoldenSpot") >= 8, "golden spots")
-check(#CS:GetTagged("RatHole") == 8, "4 rat hole pairs")
-check(#CS:GetTagged("Cage") == 1, "1 cage")
-check(#CS:GetTagged("RatSpawn") >= 1 and #CS:GetTagged("ChefSpawn") == 1 and #CS:GetTagged("LobbySpawn") >= 1, "spawns")
+check(#CS:GetTagged("Sabotage") == 20, "20 stations (13+7), got " .. #CS:GetTagged("Sabotage"))
+check(#CS:GetTagged("GoldenSpot") >= 14, "golden spots")
+check(#CS:GetTagged("RatHole") == 12, "6 rat hole pairs")
+check(M.workspace:FindFirstChild("MapPizzeria") ~= nil and M.workspace:FindFirstChild("Lobby") ~= nil, "pizzeria + lobby folders")
+check(RS:GetAttribute("MapList") == "Restaurant,Pizzeria", "map list")
+check(#CS:GetTagged("Cage") == 2, "2 cages")
+check(#CS:GetTagged("RatSpawn") >= 6 and #CS:GetTagged("ChefSpawn") == 2 and #CS:GetTagged("LobbySpawn") >= 1, "spawns")
 check(#CS:GetTagged("AlarmLight") >= 1, "alarm lights")
 check(#CS:GetTagged("Flicker") >= 1, "flicker lights")
 local partCount = #descendants(M.workspace.Map, function(d)
@@ -368,6 +378,17 @@ advance(1)
 ------------------------------------------------------------------------
 -- 3. Раунд 1: соло против повара-робота
 ------------------------------------------------------------------------
+-- голосуем за ресторан, событий нет (чтобы проверки были предсказуемы)
+RS:SetAttribute("ForceEvent", "none")
+M.runAs(alice, function()
+	RS.Remotes.VoteMap:FireServer("Restaurant")
+	RS.Remotes.VoteMap:FireServer("NoSuchMap")
+end)
+advance(0.7)
+check(RS:GetAttribute("Votes_Restaurant") == 1 and RS:GetAttribute("Votes_Pizzeria") == 0, "vote counted")
+check(guiText(alice, function(d)
+	return d:IsA("TextButton") and d.Text:find("Ресторан %(1%)") ~= nil
+end) ~= nil, "vote button shows count")
 M.raycastHook = function(origin, direction)
 	-- робот "не видит" крысу (стена), а пол для мышеловки находится
 	return { Position = origin + direction * 0.3, Instance = M.workspace.Baseplate, Normal = Vector3.new(0, 1, 0) }
@@ -380,6 +401,8 @@ check(alice:GetAttribute("Role") == "Rat", "alice is rat")
 check(alice:GetAttribute("BaseSpeed") == 0, "frozen during intro")
 check(alice.Character and alice.Character:HasTag("Rat"), "rat model tagged")
 check(alice.Character:FindFirstChild("Hat") ~= nil, "rat wears hat")
+check(RS:GetAttribute("ActiveMapId") == "Restaurant" and RS:GetAttribute("ActiveMap") == "Map", "restaurant chosen by vote")
+check(RS:GetAttribute("Votes_Restaurant") == 0, "votes reset after choosing")
 check(guiText(alice, function(d)
 	return d.Text == "🐀 ТЫ — КРЫСА" and d.Visible
 end) ~= nil, "role card shown")
@@ -396,6 +419,12 @@ check(npc and npc:FindFirstChild("ChefHat") ~= nil, "AI chef hat")
 local hum = alice.Character:FindFirstChildOfClass("Humanoid")
 advance(0.2)
 check(hum.WalkSpeed == 14, "client walk speed 14")
+check(guiText(alice, function(d)
+	return d.Text:find("КАК ИГРАТЬ") ~= nil and d.Visible
+end) ~= nil, "tutorial shown in first round")
+local markerGui = alice.PlayerGui:FindFirstChild("TaskMarker")
+check(markerGui ~= nil and markerGui.Enabled and markerGui.Adornee ~= nil, "task marker points to a task")
+check(alice:GetAttribute("XP") ~= nil and alice:GetAttribute("Level") == 1, "level attributes")
 
 -- обычная поломка (держать E)
 local coins0 = alice:GetAttribute("Coins")
@@ -414,7 +443,7 @@ end
 -- свет погас
 advance(1)
 local lightsOff = true
-for _, lamp in ipairs(CS:GetTagged("RoomLight")) do
+for _, lamp in ipairs(ConfigMod.taggedInMap("RoomLight")) do
 	local l = lamp:FindFirstChildOfClass("PointLight")
 	if l and l.Enabled then
 		lightsOff = false
@@ -480,6 +509,8 @@ check(guiText(alice, function(d)
 end) ~= nil, "results panel shows defeat")
 check(M.workspace:FindFirstChild("ChefNPC") == nil, "AI removed after round")
 print("Alice coins after round 1: " .. tostring(alice:GetAttribute("Coins")))
+check(alice:GetAttribute("TutorialDone") == true, "tutorial marked done after round")
+check(alice:GetAttribute("XP") > 0, "xp earned in round 1: " .. tostring(alice:GetAttribute("XP")))
 check(waitUntil(function()
 	return RS:GetAttribute("State") == "Lobby"
 end, 12), "back to lobby")
@@ -497,6 +528,11 @@ advance(1)
 M.runAs(bob, function()
 	RS.Remotes.ChefVolunteer:FireServer(true)
 end)
+for _, p in ipairs({ alice, bob, cara }) do
+	M.runAs(p, function()
+		RS.Remotes.VoteMap:FireServer("Restaurant")
+	end)
+end
 check(waitUntil(function()
 	return RS:GetAttribute("State") == "Playing"
 end, 30), "round 2 playing")
@@ -694,6 +730,84 @@ M.runAs(alice, function()
 end)
 advance(0.3)
 check(not alice:GetAttribute("OwnedHats"):find("vipcrown"), "vip crown not buyable with cheese")
+
+-- ===== Мега-обновление: классы, следы, уровни, новые покупки =====
+M.runAs(nil, function()
+	DataService.addCoins(alice, 1000)
+	DataService.addCoins(bob, 1000)
+end)
+local cBefore = alice:GetAttribute("Coins")
+M.runAs(alice, function()
+	shopEvent:FireServer("buy", "fast", "class")
+end)
+advance(0.3)
+check((alice:GetAttribute("OwnedClasses") or ""):find("fast") ~= nil and alice:GetAttribute("Class") == "fast", "bought fast class")
+check(alice:GetAttribute("Coins") == cBefore - 150, "class price paid")
+M.runAs(bob, function()
+	shopEvent:FireServer("buy", "strong", "class")
+end)
+advance(0.3)
+check(bob:GetAttribute("Class") == "strong", "bob strong class")
+M.runAs(alice, function()
+	shopEvent:FireServer("buy", "sparkle", "trail")
+end)
+advance(0.3)
+check(alice:GetAttribute("Trail") == "sparkle", "trail bought")
+check(alice.Character.HumanoidRootPart:FindFirstChild("RatTrail") ~= nil, "trail on lobby avatar")
+check((cara:GetAttribute("OwnedTrails") or ""):find("galaxy") ~= nil, "VIP gets galaxy trail")
+M.runAs(alice, function()
+	shopEvent:FireServer("buy", "galaxy", "trail")
+	shopEvent:FireServer("buy", "viking", "hat")
+	shopEvent:FireServer("buy", "nope", "class")
+	shopEvent:FireServer("buy", "fast", "weird")
+end)
+advance(0.3)
+check(not alice:GetAttribute("OwnedTrails"):find("galaxy"), "galaxy trail not for sale")
+check(not alice:GetAttribute("OwnedHats"):find("viking"), "level hat locked at level 1")
+M.runAs(nil, function()
+	DataService.addXP(alice, 2000)
+end)
+advance(0.3)
+check(alice:GetAttribute("Level") >= 5, "leveled up to " .. tostring(alice:GetAttribute("Level")))
+check(alice:GetAttribute("OwnedHats"):find("viking") ~= nil, "viking hat unlocked by level")
+check(alice.leaderstats["⭐ Level"].Value == alice:GetAttribute("Level"), "level in leaderstats")
+check(guiText(alice, function(d)
+	return d.Text:find("НОВЫЙ УРОВЕНЬ") ~= nil
+end) ~= nil, "level up banner")
+M.passPurchaseFinished:Fire(cara, 333, true)
+advance(0.2)
+check((cara:GetAttribute("OwnedClasses") or ""):find("ninja") ~= nil and cara:GetAttribute("AllClasses") == true, "all classes pass")
+M.runAs(cara, function()
+	shopEvent:FireServer("equip", "ninja", "class")
+end)
+advance(0.2)
+check(cara:GetAttribute("Class") == "ninja", "cara ninja")
+-- магазин: вкладки классов и доната
+click(guiText(alice, function(d)
+	return d:IsA("TextButton") and d.Text == "🐀 Классы"
+end))
+advance(0.6)
+check(guiText(alice, function(d)
+	return d:IsA("TextButton") and d.Text == "Выбрано ✓"
+end) ~= nil, "classes tab shows selected class")
+-- «Стать поваром» за Robux
+local rc
+M.runAs(nil, function()
+	rc = M.processReceipt({ PlayerId = alice.UserId, ProductId = 602, PurchaseId = "chef-1" })
+end)
+advance(0.2)
+if not DS_FAIL then
+	check(rc == Enum.ProductPurchaseDecision.PurchaseGranted and alice:GetAttribute("ChefNext") == true, "be-chef purchase")
+end
+-- голосуем за пиццерию, следующий раунд — ночь хаоса
+RS:SetAttribute("ForceEvent", "ChaosNight")
+for _, p in ipairs({ alice, bob, cara }) do
+	M.runAs(p, function()
+		RS.Remotes.VoteMap:FireServer("Pizzeria")
+	end)
+end
+advance(0.3)
+check(RS:GetAttribute("Votes_Pizzeria") == 3, "3 votes for pizzeria")
 M.runAs(nil, function()
 	DataService.addCoins(alice, 200)
 end)
@@ -715,6 +829,90 @@ check(waitUntil(function()
 	return RS:GetAttribute("State") == "Playing"
 end, 30), "round 3 playing")
 advance(1)
+local SabotageModule = M.require(modules.SabotageService)
+local ChefModule = M.require(modules.ChefService)
+check(RS:GetAttribute("ActiveMapId") == "Pizzeria", "pizzeria chosen by vote")
+check(RS:GetAttribute("Event") == "ChaosNight", "chaos night event")
+check(guiText(bob, function(d)
+	return d.Text == "🌋 Chaos Night" and d.Visible
+end) ~= nil, "event badge for bob (english)")
+check(#ConfigMod.taggedInMap("Sabotage") == 7, "7 pizzeria tasks active")
+if not DS_FAIL then
+	check(alice:GetAttribute("Role") == "Chef", "paid player is the chef")
+	check(alice:GetAttribute("ChefNext") == false, "chef purchase consumed")
+end
+for _, p in ipairs({ alice, bob, cara }) do
+	if p:GetAttribute("Role") == "Rat" then
+		check(rootOf(p).Position.Z < -150, p.Name .. " spawned in pizzeria")
+	end
+end
+-- ночь хаоса: поломка даёт в 1.5 раза больше
+local ratForChaos = (bob:GetAttribute("Role") == "Rat") and bob or cara
+local reg = station("Register")
+local ch0 = RS:GetAttribute("Chaos")
+M.runAs(nil, function()
+	SabotageModule.sabotage(reg, ratForChaos)
+end)
+check(math.abs(RS:GetAttribute("Chaos") - ch0 - 18) < 0.01, "chaos night x1.5: +" .. tostring(RS:GetAttribute("Chaos") - ch0))
+-- способности
+if bob:GetAttribute("Role") == "Rat" then
+	M.runAs(bob, function()
+		RS.Remotes.Ability:FireServer()
+	end)
+	advance(0.1)
+	check(bob:GetAttribute("Armored") == true, "armor on")
+	local caughtOk
+	M.runAs(nil, function()
+		caughtOk = ChefModule.catchRat(bob, nil)
+	end)
+	check(caughtOk == false and not bob:GetAttribute("Caught"), "armor blocks the net")
+	local uses = bob:GetAttribute("AbilityUses")
+	M.runAs(bob, function()
+		RS.Remotes.Ability:FireServer()
+	end)
+	advance(0.1)
+	check(bob:GetAttribute("AbilityUses") == uses, "ability cooldown")
+	advance(3.2)
+	check(not bob:GetAttribute("Armored"), "armor ended")
+end
+if cara:GetAttribute("Role") == "Rat" then
+	M.runAs(cara, function()
+		RS.Remotes.Ability:FireServer()
+	end)
+	advance(0.1)
+	check(cara:GetAttribute("Invisible") == true and cara.Character.Body.Transparency > 0.8, "ninja invisible")
+	advance(4.2)
+	check(not cara:GetAttribute("Invisible") and cara.Character.Body.Transparency < 0.5, "visible again")
+	-- выкуп из клетки
+	M.runAs(nil, function()
+		ChefModule.catchRat(cara, nil)
+	end)
+	advance(0.6)
+	check(cara:GetAttribute("Caught") == true, "cara caught")
+	check(guiText(cara, function(d)
+		return d:IsA("TextButton") and d.Text:find("Сбежать") ~= nil and d.Visible
+	end) ~= nil, "escape button shown in cage")
+	M.runAs(nil, function()
+		rc = M.processReceipt({ PlayerId = cara.UserId, ProductId = 601, PurchaseId = "esc-1" })
+	end)
+	advance(0.2)
+	if not DS_FAIL then
+		check(rc == Enum.ProductPurchaseDecision.PurchaseGranted and not cara:GetAttribute("Caught"), "escape purchase frees the rat")
+	end
+	-- рывок «Быстрой» (после перезарядки)
+	M.runAs(cara, function()
+		shopEvent:FireServer("equip", "fast", "class")
+	end)
+	advance(21.5)
+	M.runAs(cara, function()
+		RS.Remotes.Ability:FireServer()
+	end)
+	advance(0.1)
+	if not cara:GetAttribute("Caught") then
+		local expected = 14 * 1.12 * 1.8
+		check(cara:GetAttribute("Dashing") == true and math.abs(cara:GetAttribute("BaseSpeed") - expected) < 0.01, "dash speed " .. tostring(cara:GetAttribute("BaseSpeed")))
+	end
+end
 local chefPlayer = nil
 for _, p in ipairs({ alice, bob, cara }) do
 	if p:GetAttribute("Role") == "Chef" then
@@ -735,9 +933,11 @@ for _, p in ipairs({ alice, bob, cara }) do
 end
 if gold and goldRat then
 	local c0g = goldRat:GetAttribute("Coins")
+	local l0g = goldRat:GetAttribute("Level")
 	getSignal(gold, "Touched"):Fire(rootOf(goldRat))
 	advance(0.2)
-	check(goldRat:GetAttribute("Coins") == c0g + 15 * goldRat:GetAttribute("CoinMult"), "golden cheese reward")
+	local levelBonus = (goldRat:GetAttribute("Level") - l0g) * ConfigMod.LevelUpCheese
+	check(goldRat:GetAttribute("Coins") == c0g + 15 * goldRat:GetAttribute("CoinMult") + levelBonus, "golden cheese reward")
 	check(M.workspace:FindFirstChild("GoldenCheese") == nil, "golden cheese removed")
 end
 check(alice:GetAttribute("Role") ~= "Rat" or alice.Character:FindFirstChild("Hat") ~= nil, "crown on rat")

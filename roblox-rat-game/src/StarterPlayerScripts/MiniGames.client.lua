@@ -23,6 +23,12 @@ local function L(key, ...)
 	return Locale.forPlayer(player, key, ...)
 end
 
+-- «Сильная» крыса ломает быстрее
+local function power()
+	local cls = Config.getClass(player:GetAttribute("Class") or "normal")
+	return (cls and cls.SabotageMult) or 1
+end
+
 local gui = Instance.new("ScreenGui")
 gui.Name = "MiniGames"
 gui.ResetOnSpawn = false
@@ -251,7 +257,7 @@ local function buildMash(frame)
 		if not current or current.done then
 			return
 		end
-		progress = math.min(100, progress + 7)
+		progress = math.min(100, progress + 7 * power())
 		scale.Scale = 0.9
 		TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1 }):Play()
 		if progress >= 100 then
@@ -335,6 +341,9 @@ local function buildTiming(frame)
 	local barW = W - 60
 	local hits = 0
 	local needed = 3
+	if power() > 1 then
+		needed = 2
+	end
 	local pos = 0
 	local dir = 1
 	local speed = 0.9

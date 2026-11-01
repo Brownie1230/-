@@ -891,6 +891,17 @@ def("ParticleEmitter", "Instance", {
 	LockedToPart = "boolean",
 	ZOffset = "number",
 }, {}, { Enabled = true, Rate = 5 })
+def("Trail", "Instance", {
+	Attachment0 = "Instance",
+	Attachment1 = "Instance",
+	Color = "ColorSequence",
+	Lifetime = "number",
+	LightEmission = "number",
+	Transparency = "NumberSequence",
+	WidthScale = "NumberSequence",
+	FaceCamera = "boolean",
+	Enabled = "boolean",
+}, {}, { Enabled = true })
 def("Sound", "Instance", {
 	SoundId = "string",
 	Volume = "number",
@@ -1048,7 +1059,7 @@ local creatable = {
 	HumanoidDescription = true, Motor6D = true, Weld = true, WeldConstraint = true, SpecialMesh = true, Attachment = true,
 	Accessory = true, Tool = true, StringValue = true, IntValue = true, NumberValue = true, BoolValue = true,
 	ProximityPrompt = true, PointLight = true, SpotLight = true, SurfaceLight = true, Fire = true, Smoke = true,
-	Sparkles = true, ParticleEmitter = true, Sound = true, ScreenGui = true, BillboardGui = true, SurfaceGui = true,
+	Sparkles = true, ParticleEmitter = true, Trail = true, Sound = true, ScreenGui = true, BillboardGui = true, SurfaceGui = true,
 	Frame = true, ScrollingFrame = true, TextLabel = true, TextButton = true, UICorner = true, UIStroke = true,
 	UIPadding = true, UIListLayout = true, UIGridLayout = true, UIGradient = true, UIScale = true, Highlight = true,
 	Atmosphere = true, BloomEffect = true, ColorCorrectionEffect = true, RemoteEvent = true, Script = true,

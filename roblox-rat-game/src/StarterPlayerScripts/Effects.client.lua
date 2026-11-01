@@ -174,6 +174,24 @@ fxEvent.OnClientEvent:Connect(function(kind, a, b)
 		playUI(S.Coin, 0.5, 1.3)
 	elseif kind == "hole" then
 		burst(a, ColorSequence.new(Color3.fromRGB(80, 70, 60)), 15, 5, 0.3)
+	elseif kind == "levelup" then
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if root then
+			burst(root.Position + Vector3.new(0, 3, 0), RAINBOW, 90, 18, 0.45)
+		end
+		playUI(S.Victory, 0.8, 1.1)
+		shake(0.3, 0.4)
+	elseif kind == "ability" and typeof(a) == "Instance" then
+		local root = a:FindFirstChild("HumanoidRootPart")
+		if root then
+			local colors = {
+				Dash = ColorSequence.new(Color3.fromRGB(255, 240, 120), Color3.fromRGB(255, 180, 40)),
+				Armor = ColorSequence.new(Color3.fromRGB(150, 220, 255), Color3.fromRGB(60, 140, 255)),
+				Invisible = ColorSequence.new(Color3.fromRGB(200, 160, 255), Color3.fromRGB(120, 80, 200)),
+			}
+			burst(root.Position, colors[b] or RAINBOW, 40, 10, 0.4)
+			playAt(S.Rescue, root.Position, 0.6, 1.6)
+		end
 	elseif kind == "purchase" then
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		if root then
@@ -409,6 +427,21 @@ RunService.RenderStepped:Connect(function(dt)
 			flickerBase[l] = l.Brightness
 		end
 		l.Brightness = flickerBase[l] * (0.8 + 0.2 * math.sin(t * 13 + flickerBase[l] * 7) * math.sin(t * 7.3))
+	end
+
+	-- оттенок события раунда (видно только тебе)
+	local ev = ReplicatedStorage:GetAttribute("Event") or ""
+	local cc = game:GetService("Lighting"):FindFirstChild("RatColor")
+	if cc and cc:IsA("ColorCorrectionEffect") then
+		local tint = Color3.fromRGB(255, 240, 225)
+		if state == "Playing" and ev == "ChaosNight" then
+			tint = Color3.fromRGB(255, 200, 190)
+		elseif state == "Playing" and ev == "GoldenHour" then
+			tint = Color3.fromRGB(255, 235, 170)
+		elseif state == "Playing" and ev == "Turbo" then
+			tint = Color3.fromRGB(220, 240, 255)
+		end
+		cc.TintColor = tint
 	end
 
 	-- тревога

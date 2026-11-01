@@ -11,6 +11,7 @@
 -- В некоторых стенах есть крысиные лазейки внизу: крыса пролезет, повар — нет!
 
 local Lighting = game:GetService("Lighting")
+local Locale = require(game:GetService("ReplicatedStorage"):WaitForChild("Locale"))
 
 local TestMapBuilder = {}
 
@@ -37,6 +38,7 @@ local C = {
 }
 
 local VERT = CFrame.Angles(0, 0, math.rad(90)) -- цилиндр стоит вертикально
+local OFFSET = Vector3.new(0, 0, 0) -- сдвиг всей постройки (вторая карта стоит в другом месте)
 
 -- ===== Помощники =====
 
@@ -46,9 +48,9 @@ local function block(name, size, pos, color, material, parent)
 	p.Anchored = true
 	p.Size = size
 	if typeof(pos) == "CFrame" then
-		p.CFrame = pos
+		p.CFrame = CFrame.new(OFFSET) * pos
 	else
-		p.CFrame = CFrame.new(pos)
+		p.CFrame = CFrame.new(pos + OFFSET)
 	end
 	p.Color = color or C.wall
 	p.Material = material or Enum.Material.SmoothPlastic
@@ -426,9 +428,217 @@ end
 
 -- ===== Строим =====
 
+-- ===== ВТОРАЯ КАРТА: ПИЦЦЕРИЯ =====
+--   Кухня (печь, тестомес) | Склад (клетка, гнездо, щиток)
+--   ---------------------------------------------------
+--   Зал (столики, касса,    | Аркада (игровые автоматы,
+--        автомат с газировкой) |   автомат с игрушками)
+local function buildPizzeria()
+	map = Instance.new("Folder")
+	map.Name = "MapPizzeria"
+	map:SetAttribute("MapName", "Пиццерия")
+	map:SetAttribute("MapNameEn", "Pizzeria")
+	OFFSET = Vector3.new(0, 0, -260)
+
+	floor(-45, -35, 15, 5, Color3.fromRGB(196, 58, 48), Enum.Material.CeramicTiles) -- Зал
+	floor(15, -35, 45, 5, Color3.fromRGB(45, 30, 80), Enum.Material.Carpet) -- Аркада
+	floor(-45, 5, 5, 35, Color3.fromRGB(222, 216, 200), Enum.Material.CeramicTiles) -- Кухня
+	floor(5, 5, 45, 35, Color3.fromRGB(110, 105, 100), Enum.Material.Concrete) -- Склад
+
+	wall(-45, -35, 45, -35)
+	wall(-45, 35, 45, 35)
+	wall(-45, -35, -45, 35)
+	wall(45, -35, 45, 35)
+	wall(-45, 5, -29, 5)
+	wall(-21, 5, 21, 5, { 0 }) -- лазейка Зал ↔ Кухня
+	wall(29, 5, 45, 5)
+	wall(15, -35, 15, -19, { -30 }) -- лазейка Зал ↔ Аркада
+	wall(15, -11, 15, 5)
+	wall(5, 5, 5, 16)
+	wall(5, 24, 5, 35, { 30 }) -- лазейка Кухня ↔ Склад
+	block("Ceiling", Vector3.new(92, 1, 72), Vector3.new(0, H + 0.5, 0), C.dark)
+
+	for _, pos in ipairs({ { -30, -20 }, { -5, -20 }, { 30, -15 }, { -20, 20 }, { 25, 20 } }) do
+		lamp(pos[1], pos[2])
+	end
+	for _, pos in ipairs({ { -43, -33 }, { 43, -33 }, { -43, 33 }, { 43, 33 } }) do
+		alarmLight(pos[1], pos[2])
+	end
+	window(Vector3.new(-30, 7.5, -35), Vector3.new(0, 0, 1))
+	window(Vector3.new(-2, 7.5, -35), Vector3.new(0, 0, 1))
+	sign(Vector3.new(-15, 10.5, -34.35), Vector3.new(0, 0, 1), 12, 3, "🍕 ПИЦЦА 🍕", C.red, Color3.fromRGB(255, 230, 120), "🍕 PIZZA 🍕")
+	sign(Vector3.new(30, 10.5, -34.35), Vector3.new(0, 0, 1), 12, 3, "🕹️ АРКАДА", Color3.fromRGB(40, 20, 70), Color3.fromRGB(90, 230, 255), "🕹️ ARCADE")
+
+	-- ---------- ЗАЛ ----------
+	label("Зал", Vector3.new(-15, 10, -15), nil, nil, "Dining hall")
+	for _, cx in ipairs({ -36, -24, -12, 0 }) do
+		for _, cz in ipairs({ -28, -17 }) do
+			tableWithLegs(cx, cz, 6, 4, 3.2, C.wood)
+			decor(block("Tablecloth", Vector3.new(6.4, 0.06, 4.4), Vector3.new(cx, 3.23, cz), Color3.fromRGB(235, 235, 230), Enum.Material.Fabric))
+			decor(cyl("Pizza", 0.15, 2.4, Vector3.new(cx, 3.33, cz), Color3.fromRGB(240, 180, 80)))
+			decor(cyl("Sauce", 0.16, 2.0, Vector3.new(cx, 3.35, cz), Color3.fromRGB(200, 50, 40)))
+			chair(cx, cz - 3, -1)
+			chair(cx, cz + 3, 1)
+		end
+	end
+	block("PizzaCounter", Vector3.new(12, 3.5, 3), Vector3.new(-38, 1.75, 1.5), C.darkWood, Enum.Material.Wood)
+	local register = station("Register", Vector3.new(2, 1.6, 1.6), Vector3.new(-35, 4.3, 1.5), Color3.fromRGB(60, 60, 70), {
+		TaskName = "Взломать кассу",
+		TaskNameEn = "Hack the cash register",
+		Points = 12,
+		MiniGame = "Code",
+	}, Enum.Material.Metal)
+	brokenVisual(register, Vector3.new(1.6, 1, 0.1), Vector3.new(-35, 4.6, 0.65), Color3.fromRGB(255, 40, 40))
+	local soda = station("SodaMachine", Vector3.new(3, 8, 3), Vector3.new(-43, 4, -8), Color3.fromRGB(220, 40, 40), {
+		TaskName = "Взорвать автомат с газировкой",
+		TaskNameEn = "Explode the soda machine",
+		Points = 12,
+		HoldTime = 3,
+	})
+	decor(block("SodaPanel", Vector3.new(0.2, 3, 2.2), Vector3.new(-41.45, 5, -8), Color3.fromRGB(255, 240, 200), Enum.Material.Neon))
+	smoke(soda, Color3.fromRGB(150, 90, 50), 0.35, 4)
+	brokenVisual(soda, Vector3.new(7, 0.1, 6), Vector3.new(-38.5, 0.25, -8), Color3.fromRGB(120, 60, 30), Enum.Material.Glass, 0.3)
+	plant(10, -32)
+	plant(-42, -32)
+
+	-- ---------- АРКАДА ----------
+	label("Аркада", Vector3.new(30, 10, -15), nil, nil, "Arcade")
+	for i = 0, 3 do
+		local z = -30 + i * 7
+		local color = Color3.fromHSV(i / 4, 0.7, 0.55)
+		local cab
+		if i == 1 then
+			cab = station("ArcadeMachine", Vector3.new(3, 7, 3.5), Vector3.new(43, 3.5, z), color, {
+				TaskName = "Сломать игровой автомат",
+				TaskNameEn = "Break the arcade machine",
+				Points = 12,
+				MiniGame = "Wires",
+			})
+			local sp = Instance.new("Sparkles")
+			sp.SparkleColor = Color3.fromRGB(120, 230, 255)
+			sp.Enabled = false
+			sp.Parent = cab
+			brokenVisual(cab, Vector3.new(0.2, 2, 2.6), Vector3.new(41.35, 4.8, z), Color3.fromRGB(255, 40, 40))
+		else
+			cab = block("ArcadeCab", Vector3.new(3, 7, 3.5), Vector3.new(43, 3.5, z), color)
+		end
+		decor(block("ArcadeScreen", Vector3.new(0.2, 2, 2.6), Vector3.new(41.4, 4.8, z), Color3.fromHSV(i / 4, 0.5, 1), Enum.Material.Neon))
+		decor(block("ArcadeStick", Vector3.new(0.6, 0.6, 0.6), Vector3.new(41.2, 3.4, z), C.black))
+	end
+	block("ClawBase", Vector3.new(5, 2, 5), Vector3.new(25, 1, -25), Color3.fromRGB(255, 120, 200))
+	local glass = decor(block("ClawGlass", Vector3.new(5, 4.5, 5), Vector3.new(25, 4.25, -25), Color3.fromRGB(200, 230, 255), Enum.Material.Glass))
+	glass.Transparency = 0.6
+	for k = 0, 5 do
+		decor(ball("Prize", 0.9, Vector3.new(23.6 + (k % 3) * 1.4, 2.5, -26 + math.floor(k / 3) * 1.8), Color3.fromHSV(k / 6, 0.6, 1)))
+	end
+	for k = 0, 4 do
+		decor(block("NeonStripe", Vector3.new(26, 0.05, 0.4), Vector3.new(30, 0.24, -32 + k * 7), Color3.fromHSV(k / 5, 0.8, 1), Enum.Material.Neon))
+	end
+
+	-- ---------- КУХНЯ ----------
+	label("Кухня", Vector3.new(-20, 10, 20), nil, nil, "Kitchen")
+	local oven = station("PizzaOven", Vector3.new(9, 7, 5), Vector3.new(-37, 3.5, 31.5), Color3.fromRGB(160, 80, 50), {
+		TaskName = "Сжечь пиццу в печи",
+		TaskNameEn = "Burn the pizza in the oven",
+		Points = 12,
+		MiniGame = "Timing",
+	}, Enum.Material.Brick)
+	decor(block("OvenMouth", Vector3.new(4, 2.5, 0.2), Vector3.new(-37, 3, 28.9), C.black))
+	local ovenGlow = decor(block("OvenGlow", Vector3.new(3.4, 0.6, 0.2), Vector3.new(-37, 2.1, 28.85), Color3.fromRGB(255, 120, 30), Enum.Material.Neon))
+	local og = Instance.new("PointLight")
+	og.Color = Color3.fromRGB(255, 130, 50)
+	og.Range = 14
+	og.Brightness = 1.5
+	og.Parent = ovenGlow
+	og:AddTag("Flicker")
+	local ovenFire = Instance.new("Fire")
+	ovenFire.Size = 7
+	ovenFire.Heat = 12
+	ovenFire.Enabled = false
+	ovenFire.Parent = oven
+	smoke(oven, Color3.fromRGB(60, 60, 60), 0.5, 5)
+	local mixer = station("DoughMixer", Vector3.new(3, 4.5, 3), Vector3.new(-22, 2.25, 31.5), C.steel, {
+		TaskName = "Перегрузить тестомес",
+		TaskNameEn = "Overload the dough mixer",
+		Points = 10,
+		MiniGame = "Mash",
+	}, Enum.Material.Metal)
+	decor(cyl("MixerBowl", 1.2, 2.4, Vector3.new(-22, 5.1, 31.5), Color3.fromRGB(200, 200, 205), Enum.Material.Metal))
+	brokenVisual(mixer, Vector3.new(6, 0.1, 5), Vector3.new(-22, 0.25, 27.5), Color3.fromRGB(245, 235, 210), Enum.Material.SmoothPlastic)
+	block("Counter", Vector3.new(14, 3.5, 3), Vector3.new(-8, 1.75, 33.5), C.steel, Enum.Material.Metal)
+	for i = 0, 3 do
+		decor(cyl("Jar", 0.9, 0.6, Vector3.new(-12 + i * 2, 3.95, 33.5), Color3.fromHSV(i / 4, 0.4, 0.9), Enum.Material.Glass))
+	end
+	tableWithLegs(-20, 17, 10, 4, 3.5, C.steel)
+	for k = 0, 2 do
+		decor(cyl("PizzaBase", 0.15, 2.2, Vector3.new(-23.5 + k * 3.5, 3.58, 17), Color3.fromRGB(245, 220, 170)))
+	end
+	decor(ball("Tomato", 0.6, Vector3.new(-17, 3.8, 18.2), Color3.fromRGB(220, 40, 40)))
+	marker("ChefSpawn", Vector3.new(-15, 1, 11))
+
+	-- ---------- СКЛАД ----------
+	label("Склад", Vector3.new(25, 10, 20), nil, nil, "Storage")
+	cage(36, 27)
+	local fuse = station("FuseBox", Vector3.new(1, 3, 2.5), Vector3.new(44.5, 4.5, 15), Color3.fromRGB(90, 95, 100), {
+		TaskName = "Перегрызть провода в щитке",
+		TaskNameEn = "Chew the fuse box wires",
+		Points = 12,
+		MiniGame = "Wires",
+		Effect = "Lights",
+	}, Enum.Material.Metal)
+	local fs = Instance.new("Sparkles")
+	fs.SparkleColor = Color3.fromRGB(255, 230, 120)
+	fs.Enabled = false
+	fs.Parent = fuse
+	local tower = station("BoxTower", Vector3.new(3, 6, 3), Vector3.new(14, 3, 12), Color3.fromRGB(215, 180, 130), {
+		TaskName = "Уронить башню из коробок",
+		TaskNameEn = "Topple the pizza box tower",
+		Points = 10,
+		MiniGame = "Mash",
+	}, Enum.Material.Cardboard)
+	brokenVisual(tower, Vector3.new(7, 0.4, 6), Vector3.new(14, 0.4, 17), Color3.fromRGB(215, 180, 130), Enum.Material.Cardboard)
+	shelf(22, 33.5, 12, 2.5, 8, 3)
+	crate(Vector3.new(9, 1.25, 33))
+	crate(Vector3.new(9, 3.75, 33))
+	barrel(42, 33)
+	local nest = block("Nest", Vector3.new(0.6, 7, 7), CFrame.new(36, 0.4, 10) * VERT, Color3.fromRGB(200, 170, 90), Enum.Material.Fabric)
+	nest.Shape = Enum.PartType.Cylinder
+	label("🐀 Гнездо", Vector3.new(36, 5, 10), nil, nil, "🐀 Nest")
+	for _, pos in ipairs({ { 36, 9 }, { 34, 11 }, { 38, 11 } }) do
+		marker("RatSpawn", Vector3.new(pos[1], 1, pos[2]))
+	end
+
+	-- сыр, норки, золотой сыр, патруль
+	for _, pos in ipairs({ { -30, -22 }, { -6, -10 }, { 30, -31 }, { 33, -4 }, { -35, 18 }, { -4, 25 }, { 20, 22 }, { 12, 30 } }) do
+		cheese(pos[1], pos[2])
+	end
+	ratHole("P1", Vector3.new(-44.5, 1.1, -24), Vector3.new(1, 0, 0)) -- Зал
+	ratHole("P1", Vector3.new(44.5, 1.1, 30), Vector3.new(-1, 0, 0)) -- Склад
+	ratHole("P2", Vector3.new(-10, 1.1, 34.5), Vector3.new(0, 0, -1)) -- Кухня
+	ratHole("P2", Vector3.new(30, 1.1, -34.5), Vector3.new(0, 0, 1)) -- Аркада
+	for _, pos in ipairs({
+		{ -43, 4.3, 1.5 }, -- на прилавке
+		{ -37, 7.6, 31.5 }, -- на печи
+		{ 43, 7.6, -16 }, -- на игровом автомате
+		{ 22, 8.9, 33.5 }, -- на верхней полке
+		{ -24, 0.9, -17 }, -- под столиком
+		{ 25, 2.6, -25 }, -- в автомате с игрушками
+	}) do
+		marker("GoldenSpot", Vector3.new(pos[1], pos[2], pos[3]))
+	end
+	for _, pos in ipairs({ { -30, -20 }, { -5, -12 }, { 30, -20 }, { -20, 22 }, { 25, 15 } }) do
+		marker("PatrolPoint", Vector3.new(pos[1], 3, pos[2]))
+	end
+
+	OFFSET = Vector3.new(0, 0, 0)
+	return map
+end
+
 function TestMapBuilder.build()
 	map = Instance.new("Folder")
 	map.Name = "Map"
+	map:SetAttribute("MapName", "Ресторан")
+	map:SetAttribute("MapNameEn", "Restaurant")
 
 	-- Полы комнат (верх пола на высоте 0.2)
 	floor(-60, -45, -30, -5, C.wood, Enum.Material.WoodPlanks) -- Кабинет
@@ -831,7 +1041,11 @@ function TestMapBuilder.build()
 		marker("PatrolPoint", Vector3.new(pos[1], 3, pos[2]))
 	end
 
-	-- ---------- ЛОББИ ----------
+	local restaurant = map
+
+	-- ---------- ЛОББИ (отдельная папка) ----------
+	map = Instance.new("Folder")
+	map.Name = "Lobby"
 	block("LobbyFloor", Vector3.new(60, 1, 50), Vector3.new(0, 0, 115), Color3.fromRGB(90, 70, 60), Enum.Material.WoodPlanks)
 	for _, side in ipairs({ -1, 1 }) do
 		block("Fence", Vector3.new(0.5, 2, 50), Vector3.new(30 * side, 1.5, 115), C.darkWood, Enum.Material.Wood)
@@ -860,7 +1074,12 @@ function TestMapBuilder.build()
 		block("BenchLeg", Vector3.new(0.4, 1.5, 1.8), Vector3.new(x + 2.5, 1, 105), C.darkWood)
 	end
 	label("🐀 КРЫСИНЫЙ ПЕРЕПОЛОХ 👨‍🍳", Vector3.new(0, 12, 100), 520, 120, "🐀 RAT RUCKUS 👨‍🍳")
-	label("🎩 Шапки — кнопка внизу экрана", Vector3.new(0, 8.5, 100), 320, 80, "🎩 Hats — button at the bottom")
+	label("🛒 Магазин и голосование — внизу экрана", Vector3.new(0, 8.5, 100), 360, 80, "🛒 Shop and map vote — bottom of the screen")
+	-- доска «Как играть»
+	for _, x in ipairs({ -13, 13 }) do
+		block("BoardPost", Vector3.new(0.8, 13, 0.8), Vector3.new(x, 6.5, 138.8), C.darkWood, Enum.Material.Wood)
+	end
+	sign(Vector3.new(0, 7.5, 138.3), Vector3.new(0, 0, -1), 26, 11, Locale.t("ru", "howto_board"), Color3.fromRGB(40, 25, 50), Color3.fromRGB(255, 240, 210), Locale.t("en", "howto_board"))
 	for _, x in ipairs({ -6, 0, 6 }) do
 		marker("LobbySpawn", Vector3.new(x, 2, 112))
 	end
@@ -896,8 +1115,13 @@ function TestMapBuilder.build()
 	cc.Saturation = 0.15
 	cc.TintColor = Color3.fromRGB(255, 240, 225)
 
-	map.Parent = workspace
-	print("[TestMapBuilder] Ресторан построен! Сделай свою карту в Workspace/Map, чтобы заменить его.")
+	local lobby = map
+	local pizzeria = buildPizzeria()
+	restaurant.Parent = workspace
+	lobby.Parent = workspace
+	pizzeria.Parent = workspace
+	map = restaurant
+	print("[TestMapBuilder] Ресторан и пиццерия построены! Свою карту положи в Workspace как папку Map.")
 end
 
 return TestMapBuilder

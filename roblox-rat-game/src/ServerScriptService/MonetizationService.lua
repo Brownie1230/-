@@ -53,8 +53,13 @@ local function applyPerks(player)
 	player:SetAttribute("VIP", isVip)
 	player:SetAttribute("DoubleCheese", MonetizationService.hasPass(player, "DoubleCheese"))
 	player:SetAttribute("CoinMult", MonetizationService.coinMultiplier(player))
+	player:SetAttribute("AllClasses", MonetizationService.hasPass(player, "AllClasses"))
 	if isVip then
 		DataService.grantHat(player, "vipcrown")
+		DataService.grantTrail(player, "galaxy")
+	end
+	if MonetizationService.hasPass(player, "AllClasses") then
+		DataService.grantAllClasses(player)
 	end
 end
 
@@ -86,13 +91,15 @@ local function onPassPurchased(player, passId, purchased)
 	applyPerks(player)
 	if key == "VIP" then
 		ctx.notifyPlayer(player, "good", "thanks_vip")
+	elseif key == "AllClasses" then
+		ctx.notifyPlayer(player, "good", "thanks_classes")
 	else
 		ctx.notifyPlayer(player, "good", "thanks_double")
 	end
 	ctx.fxPlayer(player, "purchase")
 end
 
--- Покупка сыра (Developer Product). Roblox вызывает это, пока мы не ответим PurchaseGranted.
+-- Покупка товара (Developer Product). Roblox вызывает это, пока мы не ответим PurchaseGranted.
 local function processReceipt(receipt)
 	local player = Players:GetPlayerByUserId(receipt.PlayerId)
 	if not player then
@@ -102,13 +109,39 @@ local function processReceipt(receipt)
 	if not product then
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
-	local ok = DataService.grantPurchase(player, receipt.PurchaseId, product.Coins)
+	local kind = product.Kind or "cheese"
+	local escapeNow = false
+	local ok, already = DataService.processPurchase(player, receipt.PurchaseId, function(data)
+		if kind == "cheese" then
+			data.Coins = data.Coins + product.Coins
+		elseif kind == "chef" then
+			data.ChefNext = true
+		elseif kind == "escape" then
+			if ctx.canEscape(player) then
+				escapeNow = true
+			else
+				data.Coins = data.Coins + (product.Coins or 100) -- уже свободен: компенсация сыром
+			end
+		end
+	end)
 	if not ok then
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
-	ctx.notifyPlayer(player, "good", "thanks_cheese", product.Coins)
-	ctx.fxPlayer(player, "coins", product.Coins, "💎")
-	ctx.fxPlayer(player, "purchase")
+	if not already then
+		if kind == "cheese" then
+			ctx.notifyPlayer(player, "good", "thanks_cheese", product.Coins)
+			ctx.fxPlayer(player, "coins", product.Coins, "💎")
+		elseif kind == "chef" then
+			ctx.notifyPlayer(player, "good", "bechef_done")
+		elseif kind == "escape" then
+			if escapeNow then
+				ctx.escape(player)
+			else
+				ctx.notifyPlayer(player, "good", "escape_comp", product.Coins or 100)
+			end
+		end
+		ctx.fxPlayer(player, "purchase")
+	end
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
 

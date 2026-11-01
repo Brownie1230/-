@@ -122,7 +122,7 @@ local function findTarget()
 	end
 	local best, bestDist = nil, math.huge
 	for _, p in ipairs(Players:GetPlayers()) do
-		if p:GetAttribute("Role") == "Rat" and not p:GetAttribute("Caught") and p.Character then
+		if p:GetAttribute("Role") == "Rat" and not p:GetAttribute("Caught") and not p:GetAttribute("Invisible") and p.Character then
 			local r = getRoot(p.Character)
 			if r and canSee(root, p.Character) then
 				local d = (r.Position - root.Position).Magnitude
@@ -150,6 +150,9 @@ local function updateSpeed(hum)
 	local speed = Config.AIChefWalkSpeed
 	if (ReplicatedStorage:GetAttribute("Chaos") or 0) >= Config.AlarmChaos then
 		speed = speed + Config.ChefRageBonus
+	end
+	if ReplicatedStorage:GetAttribute("Event") == "Turbo" then
+		speed = speed * Config.TurboMult
 	end
 	hum.WalkSpeed = speed
 end
@@ -306,7 +309,7 @@ local function brain(myGen)
 					skipUntil[st] = os.clock() + 15 -- не дошёл, попробуем позже
 				end
 			else
-				local points = CollectionService:GetTagged("PatrolPoint")
+				local points = Config.taggedInMap("PatrolPoint")
 				if #points > 0 then
 					walkTo(points[math.random(#points)].Position, alive, findTarget)
 				else
