@@ -89,6 +89,17 @@ local function barrier(p) -- невидимая стена: не пускает,
 	return p
 end
 
+-- Карта — это Model с режимом Persistent: даже если в Workspace включён StreamingEnabled,
+-- она целиком загружается у каждого игрока (иначе на телефоне крыса может «потеряться»)
+local function newMap(name)
+	local m = Instance.new("Model")
+	m.Name = name
+	pcall(function()
+		m.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
+	end)
+	return m
+end
+
 local function decor(p) -- мелочь: не мешает ходить
 	p.CanCollide = false
 	p.CanQuery = false
@@ -442,8 +453,7 @@ end
 --   Зал (столики, касса,    | Аркада (игровые автоматы,
 --        автомат с газировкой) |   автомат с игрушками)
 local function buildPizzeria()
-	map = Instance.new("Folder")
-	map.Name = "MapPizzeria"
+	map = newMap("MapPizzeria")
 	map:SetAttribute("MapName", "Пиццерия")
 	map:SetAttribute("MapNameEn", "Pizzeria")
 	OFFSET = Vector3.new(0, 0, -260)
@@ -643,8 +653,7 @@ local function buildPizzeria()
 end
 
 function TestMapBuilder.build()
-	map = Instance.new("Folder")
-	map.Name = "Map"
+	map = newMap("Map")
 	map:SetAttribute("MapName", "Ресторан")
 	map:SetAttribute("MapNameEn", "Restaurant")
 
@@ -1052,18 +1061,27 @@ function TestMapBuilder.build()
 	local restaurant = map
 
 	-- ---------- ЛОББИ (отдельная папка) ----------
-	map = Instance.new("Folder")
-	map.Name = "Lobby"
+	map = newMap("Lobby")
 	-- светлый деревянный пол + клетчатый коврик у точки появления
-	block("LobbyFloor", Vector3.new(60, 1, 50), Vector3.new(0, 0, 115), Color3.fromRGB(215, 170, 120), Enum.Material.WoodPlanks)
+	block("LobbyFloor", Vector3.new(60, 1, 50), Vector3.new(0, 0, 115), Color3.fromRGB(185, 140, 95), Enum.Material.WoodPlanks)
 	for i = 0, 5 do
 		for j = 0, 3 do
 			local white = (i + j) % 2 == 0
 			decor(block("Rug", Vector3.new(3, 0.1, 3), Vector3.new(-7.5 + i * 3, 0.55, 107.5 + j * 3), white and C.white or Color3.fromRGB(220, 60, 60), Enum.Material.Fabric))
 		end
 	end
-	-- трава вокруг лобби: вместо чёрной бездны — зелёный сад
-	block("LobbyGrass", Vector3.new(180, 1, 120), Vector3.new(0, -0.6, 130), Color3.fromRGB(95, 175, 85), Enum.Material.Grass)
+	-- 🌱 трава под всем миром: вместо чёрной бездны — зелёный сад
+	local ground = workspace:FindFirstChild("Baseplate")
+	if not (ground and ground:IsA("BasePart") and ground.Size.X >= 500) then
+		ground = block("Ground", Vector3.new(1400, 2, 1400), Vector3.new(0, -1, -100), C.green, Enum.Material.Grass, workspace)
+	end
+	ground.Color = Color3.fromRGB(95, 175, 85)
+	ground.Material = Enum.Material.Grass
+	for _, child in ipairs(ground:GetChildren()) do
+		if child:IsA("Texture") or child:IsA("Decal") then
+			child:Destroy() -- убираем серую сетку шаблона
+		end
+	end
 
 	-- 🌳 живая изгородь по краям + НЕВИДИМАЯ стена до неба: из лобби не уйти и не упасть
 	local HEDGE = Color3.fromRGB(60, 145, 65)
@@ -1095,8 +1113,8 @@ function TestMapBuilder.build()
 		block("CornerPost", Vector3.new(1.5, 11, 1.5), Vector3.new(c[1], 5.5, c[2]), C.darkWood, Enum.Material.Wood)
 		local lamp = block("CornerLamp", Vector3.new(2, 2, 2), Vector3.new(c[1], 11.8, c[2]), Color3.fromRGB(255, 225, 150), Enum.Material.Neon)
 		local pl = Instance.new("PointLight")
-		pl.Range = 40
-		pl.Brightness = 2
+		pl.Range = 26
+		pl.Brightness = 0.7
 		pl.Color = Color3.fromRGB(255, 220, 160)
 		pl.Parent = lamp
 	end
@@ -1115,8 +1133,8 @@ function TestMapBuilder.build()
 			local bulb = decor(ball("FairyLight", 0.6, pos, BULBS[b % #BULBS + 1], Enum.Material.Neon))
 			if b % 6 == 0 then
 				local pl = Instance.new("PointLight")
-				pl.Range = 12
-				pl.Brightness = 1
+				pl.Range = 10
+				pl.Brightness = 0.5
 				pl.Color = bulb.Color
 				pl.Parent = bulb
 			end
@@ -1127,8 +1145,8 @@ function TestMapBuilder.build()
 		block("LampPost", Vector3.new(0.5, 8, 0.5), Vector3.new(pos[1], 4.5, pos[2]), C.black, Enum.Material.Metal)
 		local bulb = ball("LampBulb", 1.2, Vector3.new(pos[1], 9, pos[2]), Color3.fromRGB(255, 220, 150), Enum.Material.Neon)
 		local pl = Instance.new("PointLight")
-		pl.Range = 34
-		pl.Brightness = 2.2
+		pl.Range = 24
+		pl.Brightness = 0.8
 		pl.Color = Color3.fromRGB(255, 210, 160)
 		pl.Parent = bulb
 	end

@@ -10,6 +10,13 @@ local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local Locale = require(ReplicatedStorage:WaitForChild("Locale"))
 
 Players.CharacterAutoLoads = false -- персонажей создаём сами (крыса или человек)
+local streamingOn = false
+pcall(function()
+	streamingOn = workspace.StreamingEnabled
+end)
+if streamingOn then
+	warn("[Rat Ruckus] В Workspace включён StreamingEnabled. Лучше выключить: Workspace → Properties → StreamingEnabled ☐")
+end
 StarterPlayer.EnableMouseLockOption = false -- Shift нужен для бега
 
 -- ===== Сетевые события (до загрузки модулей!) =====
@@ -55,7 +62,7 @@ local TestMapBuilder = needModule("TestMapBuilder")
 local MonetizationService = needModule("MonetizationService")
 local PetService = needModule("PetService")
 local ExtrasService = needModule("ExtrasService")
-print("✅ Все скрипты найдены, игра запускается!")
+print("✅ Все скрипты найдены, игра запускается! Версия " .. tostring(Config.Version))
 
 -- Общее состояние игры видно всем игрокам через атрибуты
 ReplicatedStorage:SetAttribute("State", "Lobby")

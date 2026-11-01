@@ -344,7 +344,9 @@ check(#barriers == 4, "lobby has 4 invisible walls")
 for _, b in ipairs(barriers) do
 	check(b.CanCollide == true and b.Transparency == 1 and b.Size.Y >= 100, "lobby wall is solid, invisible and tall")
 end
-check(M.workspace.Lobby:FindFirstChild("LobbyGrass") ~= nil and M.workspace.Lobby:FindFirstChild("FairyLight") ~= nil, "lobby garden + fairy lights")
+check(M.workspace:FindFirstChild("Ground") ~= nil and M.workspace.Ground.Material == Enum.Material.Grass, "grass ground under the world")
+check(M.workspace.Lobby:FindFirstChild("FairyLight") ~= nil, "lobby fairy lights")
+check(M.workspace.Map:IsA("Model") and M.workspace.MapPizzeria:IsA("Model"), "maps are models (persistent streaming)")
 local restMaxZ = -math.huge
 for _, d in ipairs(M.workspace.Map:GetDescendants()) do
 	if d:IsA("BasePart") then

@@ -95,6 +95,13 @@
 
 ---
 
+## 📦 Самый простой способ: готовый файл игры
+1. Скачай **[RatRuckus.zip](https://github.com/Brownie1230/-/raw/claude/roblox-rat-game/roblox-rat-game/RatRuckus.zip)** и открой его, внутри будет `RatRuckus.rbxlx`.
+2. Дважды кликни `RatRuckus.rbxlx`, и он откроется в Roblox Studio. Все 15 скриптов уже на месте, StreamingEnabled выключен.
+3. Чтобы обновить свою игру: **File → Publish to Roblox As… →** твоя игра **→** её место **→ Overwrite**.
+
+Файл собирается командой `python3 tools/build_place.py` (запускай после изменений в `src`).
+
 ## ⚡ Установка с нуля (15 скриптов)
 
 1. Roblox Studio → **New** → **Baseplate**. Открой **View → Explorer**.
