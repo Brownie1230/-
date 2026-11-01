@@ -8,6 +8,36 @@ Config.MinPlayers = 1 -- сколько игроков нужно для ста�
 Config.HumanChefMinPlayers = 3 -- если игроков меньше, поваром будет ИИ-робот
 Config.LobbyTime = 20 -- секунд в лобби перед раундом
 Config.FallRescueY = -25 -- если игрок упал ниже этой высоты, его возвращает назад
+
+-- ===== Свет: ночь в раунде, день в лобби (день включается только на экране игрока в лобби) =====
+Config.Lighting = {
+	Night = {
+		ClockTime = 0,
+		Brightness = 1,
+		Ambient = Color3.fromRGB(58, 50, 68),
+		OutdoorAmbient = Color3.fromRGB(75, 75, 105),
+		EnvironmentDiffuseScale = 0.25,
+		Density = 0.12, -- дымка (Atmosphere)
+		Haze = 0.5,
+		AtmColor = Color3.fromRGB(80, 70, 100),
+		Decay = Color3.fromRGB(40, 30, 60),
+		BloomIntensity = 0.7, -- свечение лампочек
+		BloomThreshold = 1.4,
+	},
+	Day = {
+		ClockTime = 14,
+		Brightness = 1.3, -- больше = ярче
+		Ambient = Color3.fromRGB(60, 58, 66),
+		OutdoorAmbient = Color3.fromRGB(100, 100, 110),
+		EnvironmentDiffuseScale = 0.4,
+		Density = 0.05,
+		Haze = 0,
+		AtmColor = Color3.fromRGB(190, 205, 225),
+		Decay = Color3.fromRGB(110, 140, 190),
+		BloomIntensity = 0.08, -- днём почти без свечения
+		BloomThreshold = 3,
+	},
+}
 Config.IntroTime = 4 -- обратный отсчёт перед стартом
 Config.RoundTime = 300 -- длина раунда (5 минут)
 Config.EndTime = 10 -- экран результатов

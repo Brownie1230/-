@@ -12,6 +12,7 @@
 
 local Lighting = game:GetService("Lighting")
 local Locale = require(game:GetService("ReplicatedStorage"):WaitForChild("Locale"))
+local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Config"))
 
 local TestMapBuilder = {}
 
@@ -1255,24 +1256,25 @@ function TestMapBuilder.build()
 		end
 	end
 
-	-- Ночное освещение и атмосфера
-	Lighting.ClockTime = 0
-	Lighting.Brightness = 1
-	Lighting.Ambient = Color3.fromRGB(58, 50, 68) -- ночь, но не слишком темно
-	Lighting.OutdoorAmbient = Color3.fromRGB(75, 75, 105)
-	Lighting.EnvironmentDiffuseScale = 0.25
+	-- Ночное освещение и атмосфера (настройки в Config.Lighting.Night)
+	local N = Config.Lighting.Night
+	Lighting.ClockTime = N.ClockTime
+	Lighting.Brightness = N.Brightness
+	Lighting.Ambient = N.Ambient
+	Lighting.OutdoorAmbient = N.OutdoorAmbient
+	Lighting.EnvironmentDiffuseScale = N.EnvironmentDiffuseScale
 	Lighting.EnvironmentSpecularScale = 0.3
 	local atm = ensureEffect("Atmosphere", "RatAtmosphere")
-	atm.Density = 0.12
+	atm.Density = N.Density
 	atm.Offset = 0.1
-	atm.Color = Color3.fromRGB(80, 70, 100)
-	atm.Decay = Color3.fromRGB(40, 30, 60)
+	atm.Color = N.AtmColor
+	atm.Decay = N.Decay
 	atm.Glare = 0
-	atm.Haze = 0.5
+	atm.Haze = N.Haze
 	local bloom = ensureEffect("BloomEffect", "RatBloom")
-	bloom.Intensity = 0.7
+	bloom.Intensity = N.BloomIntensity
 	bloom.Size = 30
-	bloom.Threshold = 1.4
+	bloom.Threshold = N.BloomThreshold
 	local cc = ensureEffect("ColorCorrectionEffect", "RatColor")
 	cc.Brightness = 0.02
 	cc.Contrast = 0.12

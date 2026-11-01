@@ -461,43 +461,26 @@ local function fadeMusic(s, target, dt)
 end
 
 -- ===== ☀️ В лобби светлый день, в раунде ночь (меняется только на твоём экране) =====
+-- Настройки дня и ночи — в Config.Lighting
 local Lighting = game:GetService("Lighting")
--- обычный солнечный день (не слишком ярко: без сильного свечения и дымки)
-local DAY = {
-	ClockTime = 14,
-	Brightness = 1.6,
-	Ambient = Color3.fromRGB(70, 65, 75),
-	OutdoorAmbient = Color3.fromRGB(110, 110, 120),
-	EnvironmentDiffuseScale = 0.5,
-	Density = 0.08,
-	Haze = 0,
-	AtmColor = Color3.fromRGB(190, 205, 225),
-	Decay = Color3.fromRGB(110, 140, 190),
-	BloomIntensity = 0.15, -- днём почти без свечения
-	BloomThreshold = 2.5,
-}
-local night = nil -- ночные настройки карты (запоминаем при старте)
+local DAY, NIGHT = Config.Lighting.Day, Config.Lighting.Night
 local dayMix = nil -- 0 = ночь, 1 = день
-local function updateDaylight(dt, inLobby)
-	local atm = Lighting:FindFirstChildOfClass("Atmosphere")
-	local bloom = Lighting:FindFirstChildOfClass("BloomEffect")
-	if not night then
-		night = {
-			ClockTime = Lighting.ClockTime,
-			Brightness = Lighting.Brightness,
-			Ambient = Lighting.Ambient,
-			OutdoorAmbient = Lighting.OutdoorAmbient,
-			EnvironmentDiffuseScale = Lighting.EnvironmentDiffuseScale,
-			Density = atm and atm.Density,
-			Haze = atm and atm.Haze,
-			AtmColor = atm and atm.Color,
-			Decay = atm and atm.Decay,
-			BloomIntensity = bloom and bloom.Intensity,
-			BloomThreshold = bloom and bloom.Threshold,
-		}
+
+-- меняем свойство, только если оно и правда другое (так дешевле)
+local function setNum(obj, prop, value)
+	if math.abs(obj[prop] - value) > 0.001 then
+		obj[prop] = value
 	end
+end
+local function setColor(obj, prop, value)
+	local c = obj[prop]
+	if math.abs(c.R - value.R) + math.abs(c.G - value.G) + math.abs(c.B - value.B) > 0.003 then
+		obj[prop] = value
+	end
+end
+
+local function updateDaylight(dt, inLobby)
 	local target = inLobby and 1 or 0
-	local before = dayMix
 	if dayMix == nil then
 		dayMix = target
 	else
@@ -506,27 +489,40 @@ local function updateDaylight(dt, inLobby)
 			dayMix = target
 		end
 	end
-	if before == dayMix then
-		return
-	end
 	local k = dayMix
 	local function mix(a, b)
 		return a + (b - a) * k
 	end
-	Lighting.ClockTime = mix(night.ClockTime, DAY.ClockTime)
-	Lighting.Brightness = mix(night.Brightness, DAY.Brightness)
-	Lighting.Ambient = night.Ambient:Lerp(DAY.Ambient, k)
-	Lighting.OutdoorAmbient = night.OutdoorAmbient:Lerp(DAY.OutdoorAmbient, k)
-	Lighting.EnvironmentDiffuseScale = mix(night.EnvironmentDiffuseScale, DAY.EnvironmentDiffuseScale)
-	if atm and night.Density then
-		atm.Density = mix(night.Density, DAY.Density)
-		atm.Haze = mix(night.Haze, DAY.Haze)
-		atm.Color = night.AtmColor:Lerp(DAY.AtmColor, k)
-		atm.Decay = night.Decay:Lerp(DAY.Decay, k)
+	-- ставим каждый кадр: даже если сервер прислал свет позже, у игрока всё равно будет правильно
+	setNum(Lighting, "ClockTime", mix(NIGHT.ClockTime, DAY.ClockTime))
+	setNum(Lighting, "Brightness", mix(NIGHT.Brightness, DAY.Brightness))
+	setColor(Lighting, "Ambient", NIGHT.Ambient:Lerp(DAY.Ambient, k))
+	setColor(Lighting, "OutdoorAmbient", NIGHT.OutdoorAmbient:Lerp(DAY.OutdoorAmbient, k))
+	setNum(Lighting, "EnvironmentDiffuseScale", mix(NIGHT.EnvironmentDiffuseScale, DAY.EnvironmentDiffuseScale))
+	local atm = Lighting:FindFirstChildOfClass("Atmosphere")
+	if atm then
+		setNum(atm, "Density", mix(NIGHT.Density, DAY.Density))
+		setNum(atm, "Haze", mix(NIGHT.Haze, DAY.Haze))
+		setColor(atm, "Color", NIGHT.AtmColor:Lerp(DAY.AtmColor, k))
+		setColor(atm, "Decay", NIGHT.Decay:Lerp(DAY.Decay, k))
 	end
-	if bloom and night.BloomIntensity then
-		bloom.Intensity = mix(night.BloomIntensity, DAY.BloomIntensity)
-		bloom.Threshold = mix(night.BloomThreshold, DAY.BloomThreshold)
+	local bloom = Lighting:FindFirstChildOfClass("BloomEffect")
+	if bloom then
+		setNum(bloom, "Intensity", mix(NIGHT.BloomIntensity, DAY.BloomIntensity))
+		setNum(bloom, "Threshold", mix(NIGHT.BloomThreshold, DAY.BloomThreshold))
+	end
+end
+
+-- 🎥 камера всегда смотрит на твоего персонажа (крысу или повара)
+local function fixCamera(hum)
+	if not hum then
+		return
+	end
+	local ok, cam = pcall(function()
+		return workspace.CurrentCamera
+	end)
+	if ok and cam and cam.CameraSubject ~= hum then
+		cam.CameraSubject = hum
 	end
 end
 
@@ -544,6 +540,7 @@ RunService.RenderStepped:Connect(function(dt)
 	local hum = character and character:FindFirstChildOfClass("Humanoid")
 
 	updateDaylight(dt, role ~= "Rat" and role ~= "Chef")
+	fixCamera(hum)
 
 	-- крысы
 	for _, model in ipairs(CollectionService:GetTagged("Rat")) do

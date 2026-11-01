@@ -372,6 +372,7 @@ local alice = join("Alice", "ru-ru")
 advance(1)
 check(alice:GetAttribute("Role") == "Lobby", "alice in lobby")
 check(M.Lighting.ClockTime > 10, "lobby is bright daytime, ClockTime=" .. M.Lighting.ClockTime)
+check(M.Lighting:FindFirstChildOfClass("BloomEffect").Intensity < 0.2, "no strong glow in the lobby")
 -- упал с карты → вернулся в лобби
 alice.Character:PivotTo(CFrame.new(0, -60, 115))
 advance(1.5)
@@ -455,6 +456,15 @@ end, 6), "playing")
 advance(0.5)
 advance(4)
 check(M.Lighting.ClockTime < 3, "round is night, ClockTime=" .. M.Lighting.ClockTime)
+check(M.Lighting:FindFirstChildOfClass("BloomEffect").Intensity > 0.5, "night bloom restored")
+-- место появления крысы загружается заранее (StreamingEnabled)
+local streamed = false
+for _, r in ipairs(M.streamRequests) do
+	if r.player == alice and (r.position - rootOf(alice).Position).Magnitude < 30 then
+		streamed = true
+	end
+end
+check(streamed, "spawn area streamed before rat appears")
 check(alice:GetAttribute("BaseSpeed") == 14, "rat speed 14 got " .. tostring(alice:GetAttribute("BaseSpeed")))
 check(M.workspace:FindFirstChild("ChefNPC") ~= nil, "AI chef spawned")
 local npc = M.workspace:FindFirstChild("ChefNPC")

@@ -1676,7 +1676,15 @@ function M.checkRemoteArgs(...)
 end
 
 M.friends = {} -- [userId] = { [userId] = true }
+M.streamRequests = {}
 ClassMethods.Player = {
+	RequestStreamAroundAsync = function(p, position, timeout)
+		if typeof(position) ~= "Vector3" then
+			error("RequestStreamAroundAsync expects Vector3", 2)
+		end
+		task.wait(0.05) -- как в Roblox: немного ждёт
+		table.insert(M.streamRequests, { player = p, position = position })
+	end,
 	IsFriendsWith = function(p, userId)
 		if type(userId) ~= "number" then
 			error("IsFriendsWith expects number", 2)

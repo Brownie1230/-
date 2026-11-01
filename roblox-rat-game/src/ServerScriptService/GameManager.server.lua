@@ -375,8 +375,30 @@ local function watchDeath(player, character)
 	end)
 end
 
+-- 📡 Если в Workspace включён StreamingEnabled, сначала просим Roblox загрузить
+-- место появления у игрока, иначе на телефоне крыса может «потеряться» (камера остаётся в лобби)
+local function streamAround(player, position)
+	pcall(function()
+		player:RequestStreamAroundAsync(position, 2)
+	end)
+end
+
+local spawnToken = {}
 spawnPlayer = function(player)
 	local role = player:GetAttribute("Role") or "Lobby"
+	local spawnTag = "LobbySpawn"
+	if role == "Rat" then
+		spawnTag = "RatSpawn"
+	elseif role == "Chef" then
+		spawnTag = "ChefSpawn"
+	end
+	local target = spawnPoint(spawnTag)
+	local token = (spawnToken[player] or 0) + 1
+	spawnToken[player] = token
+	streamAround(player, target.Position)
+	if not player.Parent or spawnToken[player] ~= token then
+		return -- игрок вышел или его уже появляют заново
+	end
 	if player.Character then
 		player.Character:Destroy()
 	end
@@ -388,7 +410,10 @@ spawnPlayer = function(player)
 		player:SetAttribute("Armored", false)
 		player:SetAttribute("Invisible", false)
 		player:SetAttribute("Hunger", Config.HungerMax)
-		local rat = RatBuilder.build(player, spawnPoint("RatSpawn"))
+		local rat = RatBuilder.build(player, target)
+		pcall(function()
+			rat.ModelStreamingMode = Enum.ModelStreamingMode.Persistent -- крыса всегда видна всем
+		end)
 		player.Character = rat
 		rat.Parent = workspace
 		rat.HumanoidRootPart:SetNetworkOwner(player)
@@ -401,11 +426,7 @@ spawnPlayer = function(player)
 		if not character then
 			return
 		end
-		local spawnTag = "LobbySpawn"
-		if role == "Chef" then
-			spawnTag = "ChefSpawn"
-		end
-		character:PivotTo(spawnPoint(spawnTag))
+		character:PivotTo(target)
 		character:WaitForChild("Humanoid")
 		if role == "Chef" then
 			ChefService.dressChef(character)
@@ -665,6 +686,7 @@ for _, p in ipairs(Players:GetPlayers()) do
 end
 
 Players.PlayerRemoving:Connect(function(player)
+	spawnToken[player] = nil
 	holeCooldown[player] = nil
 	lastSqueak[player] = nil
 	roundCoins[player] = nil
@@ -841,8 +863,10 @@ task.spawn(function()
 				elseif role == "Chef" then
 					tag = "ChefSpawn"
 				end
+				local target = spawnPoint(tag)
 				root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-				p.Character:PivotTo(spawnPoint(tag))
+				p.Character:PivotTo(target)
+				task.spawn(streamAround, p, target.Position)
 			end
 		end
 	end
