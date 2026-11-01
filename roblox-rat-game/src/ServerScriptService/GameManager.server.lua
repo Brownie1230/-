@@ -260,8 +260,8 @@ local function checkAllCaught()
 		return
 	end
 	for _, r in ipairs(rats) do
-		if not r:GetAttribute("Caught") then
-			return
+		if not r:GetAttribute("Caught") or r:GetAttribute("LuckPending") then
+			return -- 🍀 у кого-то сработает «Второй шанс», ждём
 		end
 	end
 	endRound("Chef", "reason_caught")
@@ -289,6 +289,29 @@ local function fxPlayer(player, kind, a, b)
 	fxEvent:FireClient(player, kind, a, b)
 end
 
+-- 🍀 пропуск «Второй шанс»: первый раз за раунд клетка открывается сама
+local function trySecondChance(player)
+	if not MonetizationService.hasPass(player, "SecondChance") or player:GetAttribute("LuckUsed") then
+		return
+	end
+	player:SetAttribute("LuckUsed", true)
+	player:SetAttribute("LuckPending", true)
+	notifyPlayer(player, "good", "luck_soon", Config.SecondChanceDelay)
+	task.delay(Config.SecondChanceDelay, function()
+		player:SetAttribute("LuckPending", nil)
+		if state == "Playing" and player.Parent and player:GetAttribute("Role") == "Rat" and player:GetAttribute("Caught") then
+			ChefService.release(player)
+			local root = getRoot(player.Character)
+			if root then
+				fxAll("rescue", root.Position)
+			end
+			notifyAll("good", "luck_done", player.DisplayName)
+		elseif state == "Playing" then
+			checkAllCaught()
+		end
+	end)
+end
+
 local ctx = {
 	fxPlayer = fxPlayer,
 	notifyAll = notifyAll,
@@ -308,6 +331,7 @@ local ctx = {
 	end,
 	onCaught = function(player)
 		SabotageService.cancelFor(player)
+		trySecondChance(player)
 	end,
 	refreshClass = function(player)
 		refreshSpeed(player)
@@ -663,17 +687,22 @@ local function assignRoles()
 	local players = Players:GetPlayers()
 	local chef = nil
 	if #players >= Config.HumanChefMinPlayers then
-		local volunteers, paid = {}, {}
+		local volunteers, paid, passVolunteers = {}, {}, {}
 		for _, p in ipairs(players) do
 			if DataService.isChefNext(p) then
 				table.insert(paid, p)
 			elseif p:GetAttribute("WantsChef") then
 				table.insert(volunteers, p)
+				if MonetizationService.hasPass(p, "ChefPass") then
+					table.insert(passVolunteers, p) -- 🍳 пропуск повара: выбирают первым
+				end
 			end
 		end
 		local pool = players
 		if #paid > 0 then
 			pool = paid
+		elseif #passVolunteers > 0 then
+			pool = passVolunteers
 		elseif #volunteers > 0 then
 			pool = volunteers
 		end
@@ -687,6 +716,8 @@ local function assignRoles()
 			p:SetAttribute("Role", "Rat")
 		end
 		p:SetAttribute("Score", 0)
+		p:SetAttribute("LuckUsed", nil) -- 🍀 «Второй шанс» снова доступен
+		p:SetAttribute("LuckPending", nil)
 	end
 	return chef
 end

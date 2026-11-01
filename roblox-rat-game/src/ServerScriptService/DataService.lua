@@ -270,6 +270,9 @@ function DataService.addXP(player, amount)
 	if not data or not amount or amount <= 0 then
 		return 0
 	end
+	if player:GetAttribute("DoubleXP") then
+		amount = amount * 2 -- ⭐ пропуск «×2 Опыт»
+	end
 	data.XP = data.XP + amount
 	local gained = 0
 	while data.XP >= Config.xpForLevel(data.Level) do

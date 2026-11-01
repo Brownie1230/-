@@ -1,7 +1,8 @@
 -- MonetizationService (ModuleScript) — ServerScriptService
--- Донат за Robux: Game Passes (VIP, ×2 сыр) и Developer Products (пачки сыра).
+-- Донат за Robux: Game Passes (VIP, ×2 сыр, все классы, второй шанс, бесконечный бег,
+-- ×2 опыт, мега-танцы, пропуск повара) и Developer Products (пачки сыра и т.д.).
 -- Как настроить:
---   1) create.roblox.com → твоя игра → Monetization → Passes → Create a Pass (VIP и ×2 Сыр)
+--   1) create.roblox.com → твоя игра → Monetization → Passes → Create a Pass (по одному на каждый пропуск)
 --   2) Monetization → Developer Products → Create (пачки сыра)
 --   3) Скопируй ID каждого товара в Config (GamePasses и Products)
 
@@ -55,12 +56,25 @@ function MonetizationService.coinMultiplier(player)
 	return m
 end
 
+-- спасибо-сообщение за каждый пропуск
+local THANKS = {
+	VIP = "thanks_vip",
+	DoubleCheese = "thanks_double",
+	AllClasses = "thanks_classes",
+	SecondChance = "thanks_luck",
+	InfiniteStamina = "thanks_stamina",
+	DoubleXP = "thanks_xp",
+	MegaDances = "thanks_dances",
+	ChefPass = "thanks_chefpass",
+}
+
 local function applyPerks(player)
+	-- атрибут с именем пропуска = true, если он куплен (его видят HUD и другие скрипты)
+	for key in pairs(Config.GamePasses) do
+		player:SetAttribute(key, MonetizationService.hasPass(player, key))
+	end
 	local isVip = MonetizationService.hasPass(player, "VIP")
-	player:SetAttribute("VIP", isVip)
-	player:SetAttribute("DoubleCheese", MonetizationService.hasPass(player, "DoubleCheese"))
 	player:SetAttribute("CoinMult", MonetizationService.coinMultiplier(player))
-	player:SetAttribute("AllClasses", MonetizationService.hasPass(player, "AllClasses"))
 	if isVip then
 		DataService.grantHat(player, "vipcrown")
 		DataService.grantTrail(player, "galaxy")
@@ -97,13 +111,7 @@ local function onPassPurchased(player, passId, purchased)
 	end
 	owned[player][key] = true
 	applyPerks(player)
-	if key == "VIP" then
-		ctx.notifyPlayer(player, "good", "thanks_vip")
-	elseif key == "AllClasses" then
-		ctx.notifyPlayer(player, "good", "thanks_classes")
-	else
-		ctx.notifyPlayer(player, "good", "thanks_double")
-	end
+	ctx.notifyPlayer(player, "good", THANKS[key] or "thanks_double")
 	ctx.fxPlayer(player, "purchase")
 end
 

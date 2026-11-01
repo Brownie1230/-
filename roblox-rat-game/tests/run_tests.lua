@@ -70,6 +70,11 @@ ConfigMod.GamePasses.VIP = 111
 ConfigMod.GamePasses.DoubleCheese = 222
 ConfigMod.Products[1].Id = 501
 ConfigMod.GamePasses.AllClasses = 333
+ConfigMod.GamePasses.DoubleXP = 444
+ConfigMod.GamePasses.InfiniteStamina = 555
+ConfigMod.GamePasses.SecondChance = 666
+ConfigMod.GamePasses.MegaDances = 777
+ConfigMod.GamePasses.ChefPass = 888
 ConfigMod.ItemTiers.T2.Id = 702
 ConfigMod.ItemTiers.T3.Id = 703
 -- предсказуемые задания дня для теста
@@ -1203,6 +1208,146 @@ if not DS_FAIL then
 	check(dan.leaderstats["🧀 Cheese"].Value == 102, "leaderstats coins")
 end
 advance(30)
+
+------------------------------------------------------------------------
+-- 🎟️ Новые пропуски: ×2 опыт, бег, второй шанс, мега-танцы, пропуск повара
+------------------------------------------------------------------------
+local fay = join("Fay", "ru-ru")
+local gus = join("Gus", "ru-ru")
+advance(1)
+for _, id in ipairs({ 444, 555, 888 }) do
+	M.passPurchaseFinished:Fire(dan, id, true)
+end
+advance(0.2)
+check(dan:GetAttribute("DoubleXP") == true and dan:GetAttribute("InfiniteStamina") == true and dan:GetAttribute("ChefPass") == true, "dan bought 3 new passes")
+check(fay:GetAttribute("DoubleXP") == false and fay:GetAttribute("SecondChance") == false, "fay has no passes yet")
+check(guiText(dan, function(d)
+	return d.Text:find("XP is now 2") ~= nil
+end) ~= nil, "double xp thanks message")
+-- ⭐ ×2 опыт
+local xpBefore, lvlBefore = dan:GetAttribute("XP"), dan:GetAttribute("Level")
+M.runAs(nil, function()
+	DataService.addXP(dan, 10)
+end)
+advance(0.1)
+check(dan:GetAttribute("Level") ~= lvlBefore or dan:GetAttribute("XP") == xpBefore + 20, "double xp: 10 → 20")
+-- карточки пропусков в магазине
+click(guiText(dan, function(d)
+	return d:IsA("TextButton") and d.Text == "🛒 Shop"
+end))
+advance(0.3)
+click(guiText(dan, function(d)
+	return d:IsA("TextButton") and d.Text == "💎 Robux"
+end))
+advance(0.3)
+for _, title in ipairs({ "🍀 Second chance", "🏃 Infinite sprint", "⭐ 2× XP", "🪩 Mega dances", "🍳 Chef pass" }) do
+	check(guiText(dan, function(d)
+		return d.Text == title
+	end) ~= nil, "shop card " .. title)
+end
+local function cardButton(p, title)
+	local t = guiText(p, function(d)
+		return d.Text == title
+	end)
+	if t then
+		for _, ch in ipairs(t.Parent:GetChildren()) do
+			if ch:IsA("TextButton") and ch.Visible then
+				return ch
+			end
+		end
+	end
+	return nil
+end
+check((cardButton(dan, "⭐ 2× XP") or {}).Text == "Owned ✓", "double xp card shows owned")
+local luckBtn = cardButton(dan, "🍀 Second chance")
+check(luckBtn ~= nil and luckBtn.Text == "R$ 199", "second chance card price")
+if luckBtn then
+	click(luckBtn)
+	advance(0.1)
+	check(M.prompts[#M.prompts].id == 666, "second chance purchase prompt")
+end
+click(guiText(dan, function(d)
+	return d:IsA("TextButton") and d.Text == "🛒 Shop"
+end))
+-- 🍳 пропуск повара: из добровольцев выбирают того, у кого пропуск
+M.runAs(fay, function()
+	RS.Remotes.ChefVolunteer:FireServer(true)
+end)
+M.runAs(dan, function()
+	RS.Remotes.ChefVolunteer:FireServer(true)
+end)
+advance(0.2)
+if RS:GetAttribute("State") == "Playing" then
+	for _, p in ipairs({ dan, fay, gus }) do
+		if p:GetAttribute("Role") == "Rat" and not p:GetAttribute("Caught") then
+			M.runAs(nil, function()
+				ChefModule.catchRat(p, nil)
+			end)
+		end
+	end
+end
+check(waitUntil(function()
+	return RS:GetAttribute("State") ~= "Playing"
+end, 10), "round over before chef pass test")
+check(waitUntil(function()
+	return RS:GetAttribute("State") == "Playing"
+end, 120), "next round started")
+check(dan:GetAttribute("Role") == "Chef", "chef pass: dan picked as chef over fay")
+if fay:GetAttribute("Role") == "Rat" and gus:GetAttribute("Role") == "Rat" then
+	-- 🪩 мега-танцы: без пропуска нельзя, с пропуском можно
+	M.runAs(fay, function()
+		RS.Remotes.Emote:FireServer("disco")
+	end)
+	advance(0.1)
+	check(fay:GetAttribute("Emote") == nil, "disco locked without pass")
+	check(guiText(fay, function(d)
+		return d.Text:find("Мега%-танцы") ~= nil and d.Text:find("пропуске") ~= nil
+	end) ~= nil, "locked dance message")
+	M.passPurchaseFinished:Fire(fay, 777, true)
+	advance(0.2)
+	M.runAs(fay, function()
+		RS.Remotes.Emote:FireServer("disco")
+	end)
+	advance(0.1)
+	check(fay:GetAttribute("Emote") == "disco", "disco with mega dances pass")
+	advance(4.2)
+	check(fay:GetAttribute("Emote") == nil, "disco ended")
+	M.runAs(fay, function()
+		RS.Remotes.Emote:FireServer("worm")
+	end)
+	advance(0.5)
+	check(fay:GetAttribute("Emote") == "worm", "worm dance")
+	advance(3.5)
+	-- 🍀 второй шанс: первый раз клетка открывается сама
+	M.passPurchaseFinished:Fire(fay, 666, true)
+	advance(0.2)
+	check(fay:GetAttribute("SecondChance") == true, "fay bought second chance")
+	M.runAs(nil, function()
+		ChefModule.catchRat(fay, nil)
+	end)
+	advance(0.2)
+	check(fay:GetAttribute("Caught") == true and fay:GetAttribute("LuckPending") == true, "fay caught, second chance pending")
+	M.runAs(nil, function()
+		ChefModule.catchRat(gus, nil)
+	end)
+	advance(0.5)
+	check(RS:GetAttribute("State") == "Playing", "round waits for second chance")
+	advance(3)
+	check(not fay:GetAttribute("Caught"), "second chance freed fay")
+	check(guiText(gus, function(d)
+		return d.Text:find("благодаря удаче") ~= nil
+	end) ~= nil, "luck escape message")
+	M.runAs(nil, function()
+		ChefModule.catchRat(fay, nil)
+	end)
+	advance(0.5)
+	check(not fay:GetAttribute("LuckPending"), "second chance only once per round")
+	check(waitUntil(function()
+		return RS:GetAttribute("State") ~= "Playing"
+	end, 5), "chef wins after second catch")
+else
+	check(false, "fay and gus should be rats")
+end
 
 -- сохранение при выключении
 for _, fn in ipairs(M.closeCallbacks) do

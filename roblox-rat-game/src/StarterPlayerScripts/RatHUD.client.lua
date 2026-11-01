@@ -736,11 +736,24 @@ local function addRobuxCard(order, icon, kind, key, id, price, rarityKey, ribbon
 	end)
 	return card
 end
-addRobuxCard(1, "👑", "pass", "VIP", Config.GamePasses.VIP, Config.GamePassPrices.VIP, "legendary", "ribbon_hot")
-addRobuxCard(2, "🧀", "pass", "DoubleCheese", Config.GamePasses.DoubleCheese, Config.GamePassPrices.DoubleCheese, "epic", nil)
-addRobuxCard(3, "🐀", "pass", "AllClasses", Config.GamePasses.AllClasses, Config.GamePassPrices.AllClasses, "epic", nil)
+-- пропуски: { ключ в Config.GamePasses, значок, редкость, лента, текст-заголовок, текст-описание }
+local PASS_CARDS = {
+	{ "VIP", "👑", "legendary", "ribbon_hot", "vip_title", "vip_desc" },
+	{ "SecondChance", "🍀", "legendary", "ribbon_new", "luck_title", "luck_desc" },
+	{ "DoubleCheese", "🧀", "epic", nil, "double_title", "double_desc" },
+	{ "AllClasses", "🐀", "epic", nil, "allclasses_title", "allclasses_desc" },
+	{ "InfiniteStamina", "🏃", "epic", nil, "stamina_title", "stamina_desc" },
+	{ "DoubleXP", "⭐", "epic", nil, "doublexp_title", "doublexp_desc" },
+	{ "MegaDances", "🪩", "rare", "ribbon_new", "dances_title", "dances_desc" },
+	{ "ChefPass", "🍳", "rare", nil, "chefpass_title", "chefpass_desc" },
+}
+local order = 1
+for _, pc in ipairs(PASS_CARDS) do
+	local card = addRobuxCard(order, pc[2], "pass", pc[1], Config.GamePasses[pc[1]] or 0, Config.GamePassPrices[pc[1]] or 0, pc[3], pc[4])
+	card.titleKey, card.descKey = pc[5], pc[6]
+	order = order + 1
+end
 local escapeProduct = nil
-local order = 4
 for _, prod in ipairs(Config.Products) do
 	if prod.Kind == "escape" then
 		escapeProduct = prod
@@ -821,15 +834,9 @@ refreshShop = function()
 	end
 	for _, card in ipairs(robuxCards) do
 		decorate(card)
-		if card.key == "VIP" then
-			card.title.Text = L("vip_title")
-			card.desc.Text = L("vip_desc")
-		elseif card.key == "DoubleCheese" then
-			card.title.Text = L("double_title")
-			card.desc.Text = L("double_desc")
-		elseif card.key == "AllClasses" then
-			card.title.Text = L("allclasses_title")
-			card.desc.Text = L("allclasses_desc")
+		if card.titleKey then
+			card.title.Text = L(card.titleKey)
+			card.desc.Text = L(card.descKey)
 		elseif card.key == "BeChef" then
 			card.title.Text = L("bechef_title")
 			card.desc.Text = L("bechef_desc")
@@ -995,10 +1002,31 @@ corner(sprintButton, 40)
 local squeakButton = button(touchBar, { Position = UDim2.fromOffset(0, 10), Size = UDim2.fromOffset(70, 70), Text = "🐭" }, Color3.fromRGB(255, 180, 200))
 local abilityButton = button(touchBar, { Position = UDim2.fromOffset(0, -84), Size = UDim2.fromOffset(80, 80), Text = "⚡" }, Color3.fromRGB(150, 220, 255))
 local emoteButton = button(touchBar, { Position = UDim2.fromOffset(90, -84), Size = UDim2.fromOffset(70, 70), Text = "💃" }, Color3.fromRGB(255, 200, 120))
+local function emoteUnlocked(em)
+	return not em.Pass or player:GetAttribute(em.Pass) == true
+end
+-- танец из пропуска без пропуска → сразу предлагаем купить
+local function tryEmote(em)
+	if emoteUnlocked(em) then
+		emoteEvent:FireServer(em.Id)
+		return
+	end
+	local passId = Config.GamePasses[em.Pass] or 0
+	if passId > 0 then
+		MarketplaceService:PromptGamePassPurchase(player, passId)
+	else
+		addFeedLocal(L("dance_locked"))
+	end
+end
 local emoteIndex = 0
 emoteButton.Activated:Connect(function()
-	emoteIndex = emoteIndex % #Config.Emotes + 1
-	emoteEvent:FireServer(Config.Emotes[emoteIndex].Id)
+	for _ = 1, #Config.Emotes do
+		emoteIndex = emoteIndex % #Config.Emotes + 1
+		if emoteUnlocked(Config.Emotes[emoteIndex]) then
+			break
+		end
+	end
+	tryEmote(Config.Emotes[emoteIndex])
 end)
 corner(abilityButton, 40)
 abilityButton.Activated:Connect(function()
@@ -1033,7 +1061,7 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	else
 		for _, em in ipairs(Config.Emotes) do
 			if input.KeyCode == Enum.KeyCode[em.Key] then
-				emoteEvent:FireServer(em.Id)
+				tryEmote(em)
 			end
 		end
 	end
@@ -1330,7 +1358,7 @@ RunService.Heartbeat:Connect(function(dt)
 			exhausted = false
 		end
 		local sprinting = sprintHeld and moving and not exhausted and base > 0
-		if sprinting then
+		if sprinting and not player:GetAttribute("InfiniteStamina") then -- 🏃 пропуск: бег без конца
 			stamina = math.max(0, stamina - Config.StaminaDrain * dt)
 		else
 			stamina = math.min(Config.StaminaMax, stamina + Config.StaminaRegen * dt)

@@ -157,6 +157,9 @@ Config.Emotes = {
 	{ Id = "wave", Key = "C", Duration = 2.5 },
 	{ Id = "dead", Key = "V", Duration = 4 },
 	{ Id = "breakdance", Key = "B", Duration = 3.5 },
+	-- 🪩 только с пропуском «Мега-танцы»
+	{ Id = "disco", Key = "N", Duration = 4, Pass = "MegaDances" },
+	{ Id = "worm", Key = "M", Duration = 3.5, Pass = "MegaDances" },
 }
 Config.EmoteCooldown = 1.5
 
@@ -246,8 +249,24 @@ Config.GamePasses = {
 	VIP = 0, -- 👑 VIP: золотая корона, ×2 сыра, блеск
 	DoubleCheese = 0, -- 🧀 ×2 сыра навсегда
 	AllClasses = 0, -- 🐀 все классы крыс навсегда
+	SecondChance = 0, -- 🍀 раз за раунд сам сбегаешь из клетки
+	InfiniteStamina = 0, -- 🏃 бег не заканчивается
+	DoubleXP = 0, -- ⭐ ×2 опыта
+	MegaDances = 0, -- 🪩 танцы «Диско» (N) и «Червяк» (M)
+	ChefPass = 0, -- 🍳 если хочешь быть поваром, выбирают тебя первым
 }
-Config.GamePassPrices = { VIP = 199, DoubleCheese = 99, AllClasses = 149 } -- только для надписи на кнопке (цену ставишь в Creator Hub)
+-- только для надписи на кнопке (цену ставишь в Creator Hub)
+Config.GamePassPrices = {
+	VIP = 199,
+	DoubleCheese = 99,
+	AllClasses = 149,
+	SecondChance = 199,
+	InfiniteStamina = 149,
+	DoubleXP = 99,
+	MegaDances = 79,
+	ChefPass = 99,
+}
+Config.SecondChanceDelay = 3 -- через сколько секунд «Второй шанс» открывает клетку
 Config.Products = {
 	{ Key = "Cheese500", Kind = "cheese", Id = 0, Coins = 500, Price = 25 },
 	{ Key = "Cheese2500", Kind = "cheese", Id = 0, Coins = 2500, Price = 99 },

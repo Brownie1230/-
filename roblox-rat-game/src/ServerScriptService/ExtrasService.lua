@@ -116,6 +116,10 @@ local function onEmote(player, id)
 	if not emote or player:GetAttribute("Role") ~= "Rat" or player:GetAttribute("Caught") then
 		return
 	end
+	if emote.Pass and not player:GetAttribute(emote.Pass) then
+		ctx.notifyPlayer(player, "info", "dance_locked") -- 🪩 танец из пропуска
+		return
+	end
 	if (lastEmote[player] or -100) + Config.EmoteCooldown > os.clock() then
 		return
 	end

@@ -340,6 +340,9 @@ local function animateRat(model, data, dt, t)
 	-- 💃 эмоция: поворачиваем всю крысу вокруг центра
 	local owner = Players:GetPlayerFromCharacter(model)
 	local emote = owner and owner:GetAttribute("Emote")
+	if data.discoLight and emote ~= "disco" then
+		data.discoLight.Enabled = false
+	end
 	if not emote then
 		data.emoteN = nil
 		return
@@ -366,13 +369,39 @@ local function animateRat(model, data, dt, t)
 		-- ложится на спину и крутится волчком, как брейкер
 		local k = math.clamp(u / 0.3, 0, 1)
 		E = CFrame.new(0, 0.4 * k, 0) * CFrame.Angles(0, u * 14 * k, 0) * CFrame.Angles(0, 0, math.pi * k)
+	elseif emote == "disco" then
+		-- 🪩 диско: качается влево-вправо, поворачивается на каждый такт, лапка вверх-вниз
+		local beat = math.floor(u * 2) % 2 == 0 and 1 or -1
+		E = CFrame.new(math.sin(u * 4) * 0.35, math.abs(math.sin(u * 8)) * 0.35, 0) * CFrame.Angles(0, beat * 0.45, math.sin(u * 4) * 0.22)
+		-- разноцветный свет вокруг крысы
+		local root = model:FindFirstChild("HumanoidRootPart")
+		if root then
+			if not data.discoLight or data.discoLight.Parent ~= root then
+				data.discoLight = Instance.new("PointLight")
+				data.discoLight.Range = 14
+				data.discoLight.Brightness = 3
+				data.discoLight.Parent = root
+			end
+			data.discoLight.Enabled = true
+			data.discoLight.Color = Color3.fromHSV((u * 0.9) % 1, 1, 1)
+		end
+	elseif emote == "worm" then
+		-- 🐛 червяк: ложится и волной ползёт вперёд
+		local k = math.clamp(u / 0.3, 0, 1)
+		E = CFrame.new(0, -0.15 * k + math.max(0, math.sin(u * 7)) * 0.45, -math.sin(u * 7) * 0.2) * CFrame.Angles(math.sin(u * 7) * 0.35 * k, 0, 0)
 	else
 		return
+	end
+	-- у «червяка» голова и хвост догоняют волну
+	local wave = {}
+	if emote == "worm" then
+		wave.HeadMotor = CFrame.Angles(math.sin(u * 7 - 1.2) * 0.45, 0, 0)
+		wave.Tail1Motor = CFrame.Angles(math.sin(u * 7 + 1.2) * 0.6, 0, 0)
 	end
 	for _, name in ipairs({ "BodyMotor", "HeadMotor", "Tail1Motor" }) do
 		local m = data.motors[name]
 		if m then
-			m.motor.C0 = E * m.motor.C0
+			m.motor.C0 = E * m.motor.C0 * (wave[name] or CFrame.new())
 		end
 	end
 	for i, foot in ipairs(data.feet) do
@@ -383,6 +412,12 @@ local function animateRat(model, data, dt, t)
 			extra = CFrame.new(0, math.sin(u * 20 + i) * 0.08, 0) -- дёргает лапками
 		elseif emote == "breakdance" then
 			extra = CFrame.new(0, 0.3 + math.sin(u * 18 + i * 1.6) * 0.35, 0) -- дрыгает лапками в воздухе
+		elseif emote == "disco" and i <= 2 then
+			-- передние лапки по очереди тычут в небо
+			local up = (math.floor(u * 2) % 2 == i - 1) and 1 or 0
+			extra = CFrame.new(0, up * (0.7 + math.sin(u * 16) * 0.15), -0.35 * up)
+		elseif emote == "worm" then
+			extra = CFrame.new(0, 0.25, 0) -- лапки прижаты
 		end
 		foot.motor.C0 = E * foot.motor.C0 * extra
 	end
