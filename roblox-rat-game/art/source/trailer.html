@@ -266,9 +266,12 @@ function word(str, x, y, size, fill, rot=0, font=FONT){
     t.textContent=str; g.appendChild(t);
   }
   txt.appendChild(g);
-  return {g, x, y, rot, set(scale, op, dx=0, dy=0){ g.setAttribute('transform',`translate(${x+dx} ${y+dy}) rotate(${rot}) scale(${scale})`); g.setAttribute('opacity',op); }};
+  let fitK = 1;
+  try { const bb = g.getBBox(); fitK = Math.min(1, 960 / (bb.width + size*0.3)); } catch(e) {}
+  return {g, x, y, rot, set(scale, op, dx=0, dy=0){ g.setAttribute('transform',`translate(${x+dx} ${y+dy}) rotate(${rot}) scale(${scale*fitK})`); g.setAttribute('opacity',op); }};
 }
 function fit(str, base){ const n=[...str].length; return Math.min(base, Math.floor(1700/Math.max(n,1))); }
+await document.fonts.ready;
 const words = [
   // [obj, tIn, tOut]
   [word(T.hook, 540, 380, fit(T.hook,200), 'url(#gold)', -5), 0.25, 2.9],
