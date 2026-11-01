@@ -31,6 +31,11 @@ local function defaultData()
 		Trail = "none",
 		OwnedClasses = { normal = true },
 		Class = "normal",
+		OwnedPets = { none = true },
+		Pet = "none",
+		Quests = { Day = 0, List = {} },
+		UsedCodes = {},
+		LastObby = 0,
 		LastDaily = 0,
 		Streak = 0,
 		Tutorial = false,
@@ -67,6 +72,14 @@ local function publish(player)
 	player:SetAttribute("Class", data.Class)
 	player:SetAttribute("OwnedClasses", setString(data.OwnedClasses))
 	player:SetAttribute("TutorialDone", data.Tutorial)
+	player:SetAttribute("Pet", data.Pet)
+	player:SetAttribute("OwnedPets", setString(data.OwnedPets))
+	-- задания одной строкой: вид:прогресс:цель:награда:готово;...
+	local q = {}
+	for _, quest in ipairs(data.Quests.List) do
+		table.insert(q, ("%s:%d:%d:%d:%d"):format(quest.Kind, quest.Progress, quest.Goal, quest.Reward, quest.Done and 1 or 0))
+	end
+	player:SetAttribute("Quests", table.concat(q, ";"))
 	player:SetAttribute("ChefNext", data.ChefNext)
 	local stats = player:FindFirstChild("leaderstats")
 	if stats then
@@ -124,6 +137,35 @@ function DataService.load(player)
 			copySet(saved.OwnedClasses, data.OwnedClasses, function(id)
 				return Config.getClass(id) ~= nil
 			end)
+			copySet(saved.OwnedPets, data.OwnedPets, function(id)
+				return Config.getPet(id) ~= nil
+			end)
+			if type(saved.Pet) == "string" and data.OwnedPets[saved.Pet] then
+				data.Pet = saved.Pet
+			end
+			if type(saved.UsedCodes) == "table" then
+				for code, used in pairs(saved.UsedCodes) do
+					if used then
+						data.UsedCodes[tostring(code)] = true
+					end
+				end
+			end
+			data.LastObby = tonumber(saved.LastObby) or 0
+			if type(saved.Quests) == "table" and type(saved.Quests.List) == "table" then
+				data.Quests.Day = tonumber(saved.Quests.Day) or 0
+				for _, q in ipairs(saved.Quests.List) do
+					if type(q) == "table" and type(q.Kind) == "string" and tonumber(q.Goal) then
+						table.insert(data.Quests.List, {
+							Id = tostring(q.Id),
+							Kind = q.Kind,
+							Goal = tonumber(q.Goal),
+							Reward = tonumber(q.Reward) or 0,
+							Progress = tonumber(q.Progress) or 0,
+							Done = q.Done == true,
+						})
+					end
+				end
+			end
 			if type(saved.Hat) == "string" and data.Owned[saved.Hat] then
 				data.Hat = saved.Hat
 			end
@@ -339,11 +381,34 @@ function DataService.markTutorial(player)
 	end
 end
 
--- ===== Магазин за сыр: шапки, следы, классы =====
+-- Доступ к данным для других сервисов (задания, коды, питомцы)
+function DataService.getData(player)
+	return cache[player]
+end
+
+function DataService.publish(player)
+	publish(player)
+end
+
+function DataService.grantPet(player, petId)
+	local data = cache[player]
+	if data and not data.OwnedPets[petId] then
+		data.OwnedPets[petId] = true
+		publish(player)
+	end
+end
+
+function DataService.getPet(player)
+	local data = cache[player]
+	return Config.getPet(data and data.Pet or "none") or Config.Pets[1]
+end
+
+-- ===== Магазин за сыр: шапки, следы, классы, питомцы =====
 local CATEGORIES = {
 	hat = { list = "Hats", owned = "Owned", field = "Hat", get = Config.getHat },
 	trail = { list = "Trails", owned = "OwnedTrails", field = "Trail", get = Config.getTrail },
 	class = { list = "Classes", owned = "OwnedClasses", field = "Class", get = Config.getClass },
+	pet = { list = "Pets", owned = "OwnedPets", field = "Pet", get = Config.getPet },
 }
 
 local function onShop(player, action, itemId, category)
@@ -369,7 +434,7 @@ local function onShop(player, action, itemId, category)
 			ctx.notifyPlayer(player, "info", "vip_only")
 			return
 		end
-		if item.Level then
+		if item.Level and data.Level < item.Level then
 			ctx.notifyPlayer(player, "info", "level_lock", item.Level)
 			return
 		end
@@ -388,6 +453,8 @@ local function onShop(player, action, itemId, category)
 	publish(player)
 	if category == "class" then
 		ctx.refreshClass(player)
+	elseif category == "pet" then
+		ctx.refreshPet(player)
 	else
 		ctx.refreshHat(player)
 	end

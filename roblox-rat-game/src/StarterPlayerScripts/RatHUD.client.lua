@@ -19,6 +19,8 @@ local fxEvent = remotes:WaitForChild("FX")
 local shopEvent = remotes:WaitForChild("ShopAction")
 local squeakEvent = remotes:WaitForChild("Squeak")
 local abilityEvent = remotes:WaitForChild("Ability")
+local codeEvent = remotes:WaitForChild("RedeemCode")
+local emoteEvent = remotes:WaitForChild("Emote")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
@@ -391,16 +393,19 @@ local tasksLabel = text(tasksPanel, {
 local lobbyBar = make("Frame", gui, {
 	AnchorPoint = Vector2.new(0.5, 1),
 	Position = UDim2.new(0.5, 0, 1, -18),
-	Size = UDim2.fromOffset(560, 54),
+	Size = UDim2.fromOffset(820, 54),
 	BackgroundTransparency = 1,
 })
 make("UIListLayout", lobbyBar, {
+	SortOrder = Enum.SortOrder.LayoutOrder,
 	FillDirection = Enum.FillDirection.Horizontal,
 	HorizontalAlignment = Enum.HorizontalAlignment.Center,
 	Padding = UDim.new(0, 14),
 })
-local shopButton = button(lobbyBar, { Size = UDim2.fromOffset(180, 54), Text = "" }, Color3.fromRGB(180, 130, 255))
-local chefButton = button(lobbyBar, { Size = UDim2.fromOffset(360, 54), Text = "" })
+local shopButton = button(lobbyBar, { LayoutOrder = 1, Size = UDim2.fromOffset(150, 54), Text = "" }, Color3.fromRGB(180, 130, 255))
+local codesButton = button(lobbyBar, { LayoutOrder = 2, Size = UDim2.fromOffset(130, 54), Text = "" }, Color3.fromRGB(255, 120, 160))
+local inviteButton = button(lobbyBar, { LayoutOrder = 3, Size = UDim2.fromOffset(160, 54), Text = "" }, Color3.fromRGB(110, 210, 255))
+local chefButton = button(lobbyBar, { LayoutOrder = 4, Size = UDim2.fromOffset(330, 54), Text = "" })
 local wantsChef = false
 local function refreshChefButton()
 	if wantsChef then
@@ -493,6 +498,7 @@ local TABS = {
 	{ id = "hats", key = "tab_hats", color = Color3.fromRGB(180, 130, 255) },
 	{ id = "trails", key = "tab_trails", color = Color3.fromRGB(255, 140, 200) },
 	{ id = "classes", key = "tab_classes", color = Color3.fromRGB(255, 180, 70) },
+	{ id = "pets", key = "tab_pets", color = Color3.fromRGB(140, 220, 120) },
 	{ id = "robux", key = "tab_robux", color = Color3.fromRGB(80, 200, 255) },
 }
 local shopTab = "hats"
@@ -519,7 +525,7 @@ end
 
 local refreshShop
 for i, tab in ipairs(TABS) do
-	local b = button(shop, { Position = UDim2.fromOffset(14 + (i - 1) * 158, 60), Size = UDim2.fromOffset(150, 42), Text = "", ZIndex = 10 }, tab.color)
+	local b = button(shop, { Position = UDim2.fromOffset(14 + (i - 1) * 126, 60), Size = UDim2.fromOffset(122, 42), Text = "", ZIndex = 10 }, tab.color)
 	tabButtons[tab.id] = b
 	lists[tab.id] = makeList()
 	b.Activated:Connect(function()
@@ -559,6 +565,7 @@ local CATS = {
 	{ tab = "hats", cat = "hat", items = Config.Hats, owned = "OwnedHats", current = "Hat", equipKey = "equip", equippedKey = "equipped" },
 	{ tab = "trails", cat = "trail", items = Config.Trails, owned = "OwnedTrails", current = "Trail", equipKey = "equip", equippedKey = "equipped" },
 	{ tab = "classes", cat = "class", items = Config.Classes, owned = "OwnedClasses", current = "Class", equipKey = "select", equippedKey = "selected" },
+	{ tab = "pets", cat = "pet", items = Config.Pets, owned = "OwnedPets", current = "Pet", equipKey = "equip", equippedKey = "equipped" },
 }
 local itemCards = {}
 for _, c in ipairs(CATS) do
@@ -637,6 +644,8 @@ refreshShop = function()
 		info.title.Text = Locale.itemName(lang(), item)
 		if c.cat == "class" then
 			info.desc.Text = L("class_" .. item.Id .. "_desc")
+		elseif c.cat == "pet" and (item.Bonus or 0) > 0 then
+			info.desc.Text = L("pet_bonus", math.floor(item.Bonus * 100 + 0.5)) .. (item.Level and (" • ⭐" .. item.Level) or "")
 		elseif item.Level then
 			info.desc.Text = "⭐ " .. item.Level
 		else
@@ -705,6 +714,103 @@ closeShop.Activated:Connect(function()
 	shop.Visible = false
 end)
 
+-- ===== 🎟️ Коды =====
+local codesPanel = panel(gui, {
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.45),
+	Size = UDim2.fromOffset(420, 210),
+	Visible = false,
+	ZIndex = 12,
+})
+local codesTitle = text(codesPanel, { Position = UDim2.fromOffset(16, 10), Size = UDim2.new(1, -80, 0, 40), TextXAlignment = Enum.TextXAlignment.Left, Text = "", ZIndex = 12 })
+local closeCodes = button(codesPanel, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10), Size = UDim2.fromOffset(42, 42), Text = "✕", ZIndex = 12 }, RED)
+local codeBox = make("TextBox", codesPanel, {
+	Position = UDim2.fromOffset(16, 64),
+	Size = UDim2.new(1, -150, 0, 52),
+	BackgroundColor3 = Color3.fromRGB(245, 240, 250),
+	TextColor3 = Color3.fromRGB(30, 20, 40),
+	Font = FONT,
+	TextScaled = true,
+	PlaceholderText = "TIKTOK",
+	Text = "",
+	ClearTextOnFocus = false,
+	ZIndex = 12,
+})
+corner(codeBox, 10)
+local codeOk = button(codesPanel, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 64), Size = UDim2.fromOffset(118, 52), Text = "OK", ZIndex = 12 }, GREEN)
+local codesHint = text(codesPanel, { Position = UDim2.fromOffset(16, 130), Size = UDim2.new(1, -32, 0, 30), Font = Enum.Font.GothamMedium, TextColor3 = Color3.fromRGB(210, 200, 220), Text = "", ZIndex = 12 })
+local function sendCode()
+	if codeBox.Text ~= "" then
+		codeEvent:FireServer(codeBox.Text)
+		codeBox.Text = ""
+	end
+end
+codeOk.Activated:Connect(sendCode)
+codeBox.FocusLost:Connect(function(enter)
+	if enter then
+		sendCode()
+	end
+end)
+codesButton.Activated:Connect(function()
+	codesPanel.Visible = not codesPanel.Visible
+	if codesPanel.Visible then
+		popIn(codesPanel)
+	end
+end)
+closeCodes.Activated:Connect(function()
+	codesPanel.Visible = false
+end)
+
+-- ===== 👥 Пригласить друзей =====
+inviteButton.Activated:Connect(function()
+	pcall(function()
+		game:GetService("SocialService"):PromptGameInvite(player)
+	end)
+end)
+
+-- ===== 📜 Задания дня =====
+local questsPanel = panel(gui, {
+	Position = UDim2.new(0, 12, 0.3, 0),
+	Size = UDim2.fromOffset(300, 0),
+	AutomaticSize = Enum.AutomaticSize.Y,
+	Visible = false,
+})
+padding(questsPanel, 12)
+local questsLabel = text(questsPanel, {
+	Size = UDim2.new(1, 0, 0, 0),
+	AutomaticSize = Enum.AutomaticSize.Y,
+	TextSize = 18,
+	TextWrapped = true,
+	RichText = true,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextYAlignment = Enum.TextYAlignment.Top,
+	Text = "",
+})
+local function refreshQuests()
+	local lines = { "<b>" .. L("quests_title") .. "</b>" }
+	for entry in string.gmatch(player:GetAttribute("Quests") or "", "[^;]+") do
+		local kind, prog, goal, rewardAmount, done = string.match(entry, "^(%w+):(%d+):(%d+):(%d+):(%d)$")
+		if kind then
+			local line = L("quest_" .. kind, tonumber(prog), tonumber(goal))
+			if done == "1" then
+				table.insert(lines, '<font color="#7CFC8A">✔ ' .. line .. "</font>")
+			else
+				table.insert(lines, "• " .. line .. ' <font color="#FFD750">+' .. rewardAmount .. " 🧀</font>")
+			end
+		end
+	end
+	questsLabel.Text = table.concat(lines, "\n")
+end
+
+-- бонус друзей
+local friendPill = panel(gui, {
+	Position = UDim2.new(0.5, 190, 0, 90),
+	Size = UDim2.fromOffset(120, 28),
+	Visible = false,
+})
+local friendLabel = text(friendPill, { Size = UDim2.fromScale(1, 1), Text = "", TextColor3 = Color3.fromRGB(120, 220, 255) })
+padding(friendPill, 4)
+
 -- ===== Кнопка «Сбежать из клетки» (Robux) =====
 local escapeButton = button(gui, {
 	AnchorPoint = Vector2.new(0.5, 1),
@@ -735,6 +841,12 @@ local sprintButton = button(touchBar, { Position = UDim2.fromOffset(90, 0), Size
 corner(sprintButton, 40)
 local squeakButton = button(touchBar, { Position = UDim2.fromOffset(0, 10), Size = UDim2.fromOffset(70, 70), Text = "🐭" }, Color3.fromRGB(255, 180, 200))
 local abilityButton = button(touchBar, { Position = UDim2.fromOffset(0, -84), Size = UDim2.fromOffset(80, 80), Text = "⚡" }, Color3.fromRGB(150, 220, 255))
+local emoteButton = button(touchBar, { Position = UDim2.fromOffset(90, -84), Size = UDim2.fromOffset(70, 70), Text = "💃" }, Color3.fromRGB(255, 200, 120))
+local emoteIndex = 0
+emoteButton.Activated:Connect(function()
+	emoteIndex = emoteIndex % #Config.Emotes + 1
+	emoteEvent:FireServer(Config.Emotes[emoteIndex].Id)
+end)
 corner(abilityButton, 40)
 abilityButton.Activated:Connect(function()
 	abilityEvent:FireServer()
@@ -765,6 +877,12 @@ UserInputService.InputBegan:Connect(function(input, processed)
 		squeakEvent:FireServer()
 	elseif input.KeyCode == Enum.KeyCode.F or input.KeyCode == Enum.KeyCode.ButtonX then
 		abilityEvent:FireServer()
+	else
+		for _, em in ipairs(Config.Emotes) do
+			if input.KeyCode == Enum.KeyCode[em.Key] then
+				emoteEvent:FireServer(em.Id)
+			end
+		end
 	end
 end)
 UserInputService.InputEnded:Connect(function(input)
@@ -1173,7 +1291,18 @@ RunService.Heartbeat:Connect(function(dt)
 	-- надписи, которые зависят только от языка
 	hungerCaption.Text = L("hunger")
 	staminaCaption.Text = L("stamina")
-	shopButton.Text = L("shop_button")
+	shopButton.Text = L("shop_main")
+	codesButton.Text = L("codes_button")
+	inviteButton.Text = L("invite_button")
+	codesTitle.Text = L("codes_title")
+	codesHint.Text = L("codes_hint")
+	friendPill.Visible = player:GetAttribute("FriendBonus") == true
+	friendLabel.Text = L("friend_bonus")
+	questsPanel.Visible = (state == "Lobby" or state == "Ended") and (player:GetAttribute("Quests") or "") ~= "" and not shop.Visible
+	if state ~= "Lobby" then
+		codesPanel.Visible = false
+	end
+	emoteButton.Visible = r == "Rat" and not caught
 	refreshChefButton()
 	hungerBg.Visible = r == "Rat"
 	staminaBg.Visible = r == "Rat" or r == "Chef"
@@ -1223,6 +1352,7 @@ RunService.Heartbeat:Connect(function(dt)
 		refreshPrompts()
 		refreshTasks()
 		refreshVotes()
+		refreshQuests()
 		if shop.Visible then
 			refreshShop()
 		end

@@ -29,6 +29,8 @@ local squeakEvent = makeRemote("Squeak")
 local languageEvent = makeRemote("SetLanguage")
 local abilityEvent = makeRemote("Ability")
 local voteEvent = makeRemote("VoteMap")
+makeRemote("RedeemCode")
+makeRemote("Emote")
 makeRemote("ShopAction")
 makeRemote("MiniGame")
 
@@ -50,6 +52,8 @@ local ChefService = needModule("ChefService")
 local ChefAI = needModule("ChefAI")
 local TestMapBuilder = needModule("TestMapBuilder")
 local MonetizationService = needModule("MonetizationService")
+local PetService = needModule("PetService")
+local ExtrasService = needModule("ExtrasService")
 print("✅ Все скрипты найдены, игра запускается!")
 
 -- Общее состояние игры видно всем игрокам через атрибуты
@@ -189,13 +193,25 @@ local function refreshSpeed(player)
 	end
 end
 
+-- задания дня, которые засчитываются за награды
+local QUEST_KIND = { Sabotage = "Sabotage", Rescue = "Rescue", Catch = "Catch", Repair = "Repair", Golden = "Golden", Participation = "Play", RatWin = "Win", ChefWin = "Win" }
+
+-- во сколько раз больше сыра: пропуски + питомец + друг на сервере
+local function cheeseFactor(player)
+	local f = MonetizationService.coinMultiplier(player) + PetService.bonus(player)
+	if player:GetAttribute("FriendBonus") then
+		f = f + Config.FriendBonus
+	end
+	return f
+end
+
 local function reward(player, kind)
 	local amount = Config.Rewards[kind] or 0
 	if amount <= 0 or not player.Parent then
 		return
 	end
-	local mult = MonetizationService.coinMultiplier(player)
-	amount = amount * mult
+	local mult = cheeseFactor(player)
+	amount = math.floor(amount * mult + 0.5)
 	DataService.addCoins(player, amount)
 	roundCoins[player] = (roundCoins[player] or 0) + amount
 	local label = Locale.forPlayer(player, "reward_" .. kind)
@@ -204,6 +220,7 @@ local function reward(player, kind)
 	end
 	fxEvent:FireClient(player, "coins", amount, label)
 	DataService.addXP(player, Config.XP[kind])
+	ExtrasService.progress(player, QUEST_KIND[kind])
 end
 
 local function endRound(who, reason)
@@ -294,6 +311,9 @@ local ctx = {
 	refreshClass = function(player)
 		refreshSpeed(player)
 	end,
+	refreshPet = function(player)
+		PetService.refresh(player)
+	end,
 	canEscape = function(player)
 		return state == "Playing" and player:GetAttribute("Role") == "Rat" and player:GetAttribute("Caught") == true
 	end,
@@ -308,6 +328,8 @@ local ctx = {
 }
 DataService.init(ctx)
 MonetizationService.init(ctx, DataService)
+PetService.init(DataService)
+ExtrasService.init(ctx, DataService)
 SabotageService.init(ctx)
 ChefService.init(ctx)
 ChefAI.init(ctx, SabotageService, ChefService)
@@ -346,6 +368,7 @@ spawnPlayer = function(player)
 		rat.Parent = workspace
 		rat.HumanoidRootPart:SetNetworkOwner(player)
 		refreshSpeed(player)
+		PetService.refresh(player)
 		watchDeath(player, rat)
 	else
 		player:LoadCharacter()
@@ -363,11 +386,17 @@ spawnPlayer = function(player)
 			ChefService.dressChef(character)
 			ChefService.giveTool(player)
 			ChefService.giveTrapTool(player)
+			if currentEvent == "GiantChef" then
+				pcall(function()
+					character:ScaleTo(Config.GiantScale)
+				end)
+			end
 		else
 			character:WaitForChild("Head", 5)
 			refreshHat(player)
 		end
 		refreshSpeed(player)
+		PetService.refresh(player)
 		watchDeath(player, character)
 	end
 end
@@ -398,6 +427,7 @@ local function setupCrumb(crumb)
 		player:SetAttribute("Hunger", hunger)
 		refreshSpeed(player)
 		fxEvent:FireClient(player, "eat", crumb.Position)
+		ExtrasService.progress(player, "Eat")
 		task.delay(Config.CrumbRespawn, function()
 			crumb:SetAttribute("Eaten", false)
 			crumb.Transparency = 0
@@ -479,6 +509,7 @@ abilityEvent.OnServerEvent:Connect(function(player)
 		fxAll("ability", character, cls.Ability)
 	end
 	notifyPlayer(player, "good", "ability_" .. cls.Ability)
+	ExtrasService.progress(player, "Ability")
 	task.delay(cls.Duration, function()
 		if not player.Parent then
 			return
@@ -589,6 +620,7 @@ local function onPlayerAdded(player)
 	local bonus, streak = DataService.load(player)
 	if player.Parent then
 		MonetizationService.load(player)
+		ExtrasService.onJoin(player)
 	end
 	if not player.Parent then
 		return
@@ -616,6 +648,8 @@ Players.PlayerRemoving:Connect(function(player)
 	MonetizationService.forget(player)
 	lastAbility[player] = nil
 	votes[player] = nil
+	PetService.forget(player)
+	ExtrasService.onLeave(player)
 	publishVotes()
 	task.delay(0.5, function()
 		if state == "Playing" then
@@ -859,6 +893,7 @@ while true do
 		ReplicatedStorage:SetAttribute("Event", "")
 		SabotageService.reset()
 		giveResults()
+		task.spawn(ExtrasService.updateLeaderboard)
 		for t = Config.EndTime, 1, -1 do
 			ReplicatedStorage:SetAttribute("TimeLeft", t)
 			task.wait(1)

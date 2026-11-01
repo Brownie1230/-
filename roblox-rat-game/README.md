@@ -3,6 +3,16 @@
 **Жанр:** командная игра «крысы против повара».
 Ночью в ресторане 2–7 крыс устраивают хаос, а повар (игрок или робот) пытается их переловить.
 
+## 🔥 Версия 4 (вирусное обновление)
+- **🎟️ Коды** для TikTok и YouTube: `TIKTOK` (+500), `RATS` (+250), `RELEASE` (+300), `CHEESE` (+150). Свои коды добавляй в `Config.Codes`.
+- **🐹 Питомцы** летают и бегают за тобой и дают +5…30% сыра (Таракан, Хомяк, Голубь, Сырный слайм, Мини-дракон за 15 уровень, Золотой хомяк для VIP).
+- **📜 Задания дня**: 3 новых задания каждый день с наградой.
+- **🏆 Глобальная таблица побед** в лобби (OrderedDataStore).
+- **💃 Танцы крыс**: Z — танец, X — сальто, C — привет, V — притвориться мёртвой (на телефоне кнопка 💃).
+- **🧟 Событие «Гигантский повар»**: огромный повар с длинным сачком.
+- **👥 Друзья**: кнопка «Пригласить» и +20% сыра, если играешь с другом.
+- **🧗 Паркур в лобби**: золотой сыр наверху, +75 🧀 раз в день.
+
 ## 🆕 Версия 3 (мега-обновление)
 - **🐀 Классы крыс** со способностью на **F**: ⚡ Быстрая (рывок), 💪 Сильная (ломает быстрее + броня от сачка), 🥷 Невидимка (невидимость 4 сек).
 - **✨ Следы** за крысой (искры, сердечки, огонь, лёд, радуга, VIP-галактика).
@@ -58,7 +68,7 @@
 
 ---
 
-## ⚡ Установка с нуля (13 скриптов)
+## ⚡ Установка с нуля (15 скриптов)
 
 1. Roblox Studio → **New** → **Baseplate**. Открой **View → Explorer**.
 2. Создай скрипты **с точно такими именами** (наведи на папку → **⊕**):
@@ -75,6 +85,8 @@
 | ServerScriptService | **ModuleScript** | `ChefAI` | `src/ServerScriptService/ChefAI.lua` |
 | ServerScriptService | **ModuleScript** | `TestMapBuilder` | `src/ServerScriptService/TestMapBuilder.lua` |
 | ServerScriptService | **ModuleScript** | `MonetizationService` | `src/ServerScriptService/MonetizationService.lua` |
+| ServerScriptService | **ModuleScript** | `PetService` | `src/ServerScriptService/PetService.lua` |
+| ServerScriptService | **ModuleScript** | `ExtrasService` | `src/ServerScriptService/ExtrasService.lua` |
 | StarterPlayer → StarterPlayerScripts | **LocalScript** | `RatHUD` | `src/StarterPlayerScripts/RatHUD.client.lua` |
 | StarterPlayer → StarterPlayerScripts | **LocalScript** | `Effects` | `src/StarterPlayerScripts/Effects.client.lua` |
 | StarterPlayer → StarterPlayerScripts | **LocalScript** | `MiniGames` | `src/StarterPlayerScripts/MiniGames.client.lua` |

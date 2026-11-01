@@ -1084,6 +1084,66 @@ function TestMapBuilder.build()
 		marker("LobbySpawn", Vector3.new(x, 2, 112))
 	end
 
+	-- 🏆 Таблица лидеров (глобальная, обновляет ExtrasService)
+	local boardCf = CFrame.lookAt(Vector3.new(-29.3, 7.5, 117), Vector3.new(-28.3, 7.5, 117))
+	block("LeaderFrame", Vector3.new(17, 12.5, 0.4), boardCf * CFrame.new(0, 0, 0.25), C.darkWood, Enum.Material.Wood)
+	local board = block("Leaderboard", Vector3.new(16, 11.5, 0.3), boardCf, Color3.fromRGB(30, 20, 40))
+	board:AddTag("Leaderboard")
+	local lbGui = Instance.new("SurfaceGui")
+	lbGui.Face = Enum.NormalId.Front
+	lbGui.LightInfluence = 0
+	lbGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	lbGui.PixelsPerStud = 40
+	lbGui.Parent = board
+	local lbList = Instance.new("UIListLayout")
+	lbList.SortOrder = Enum.SortOrder.LayoutOrder
+	lbList.Parent = lbGui
+	local lbTitle = Instance.new("TextLabel")
+	lbTitle.Name = "Title"
+	lbTitle.LayoutOrder = 0
+	lbTitle.Size = UDim2.new(1, 0, 0.14, 0)
+	lbTitle.BackgroundTransparency = 1
+	lbTitle.TextScaled = true
+	lbTitle.Font = Enum.Font.FredokaOne
+	lbTitle.TextColor3 = Color3.fromRGB(255, 215, 80)
+	lbTitle.Text = Locale.t("ru", "leaderboard_title")
+	lbTitle:SetAttribute("ru", Locale.t("ru", "leaderboard_title"))
+	lbTitle:SetAttribute("en", Locale.t("en", "leaderboard_title"))
+	lbTitle:AddTag("Localized")
+	lbTitle.Parent = lbGui
+	for i = 1, 10 do
+		local row = Instance.new("TextLabel")
+		row.Name = "Row" .. i
+		row.LayoutOrder = i
+		row.Size = UDim2.new(1, 0, 0.086, 0)
+		row.BackgroundTransparency = 1
+		row.TextScaled = true
+		row.Font = Enum.Font.FredokaOne
+		row.TextColor3 = Color3.new(1, 1, 1)
+		row.Text = ""
+		row.Parent = lbGui
+	end
+
+	-- 🧗 Паркур: лестница из платформ, наверху золотой сыр
+	local steps = { { 25, 2.5, 95 }, { 25, 5, 101 }, { 20, 7.5, 106 }, { 25, 10, 111 }, { 20, 12.5, 116 }, { 25, 15, 121 }, { 20, 17.5, 126 }, { 25, 20, 131 }, { 19, 22.5, 135 }, { 13, 25, 135 }, { 7, 27.5, 135 } }
+	for i, st in ipairs(steps) do
+		local size = (i == #steps) and Vector3.new(6, 1, 6) or Vector3.new(4, 1, 4)
+		block("ObbyStep", size, Vector3.new(st[1], st[2], st[3]), Color3.fromHSV(i / #steps, 0.65, 1), Enum.Material.SmoothPlastic)
+		decor(block("ObbyGlow", Vector3.new(size.X + 0.2, 0.15, size.Z + 0.2), Vector3.new(st[1], st[2] - 0.45, st[3]), Color3.fromHSV(i / #steps, 0.8, 1), Enum.Material.Neon))
+	end
+	local trophy = block("ObbyCheese", Vector3.new(2.4, 1.6, 2.4), Vector3.new(7, 29, 135), Color3.fromRGB(255, 200, 40), Enum.Material.Neon)
+	trophy.CanCollide = false
+	trophy:AddTag("ObbyReward")
+	local tl = Instance.new("PointLight")
+	tl.Color = Color3.fromRGB(255, 210, 80)
+	tl.Range = 16
+	tl.Brightness = 2
+	tl.Parent = trophy
+	local tsp = Instance.new("Sparkles")
+	tsp.SparkleColor = Color3.fromRGB(255, 230, 120)
+	tsp.Parent = trophy
+	label(Locale.t("ru", "obby_sign"), Vector3.new(25, 6, 92), 260, 80, Locale.t("en", "obby_sign"))
+
 	-- Стандартный SpawnLocation из шаблона стоит внутри ресторана — переносим в лобби
 	for _, s in ipairs(workspace:GetDescendants()) do
 		if s:IsA("SpawnLocation") then

@@ -57,6 +57,7 @@ local function applyPerks(player)
 	if isVip then
 		DataService.grantHat(player, "vipcrown")
 		DataService.grantTrail(player, "galaxy")
+		DataService.grantPet(player, "goldhamster")
 	end
 	if MonetizationService.hasPass(player, "AllClasses") then
 		DataService.grantAllClasses(player)

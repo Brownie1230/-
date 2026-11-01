@@ -54,6 +54,11 @@ local function buildNPC()
 	model.Name = "ChefNPC"
 	model:PivotTo(spawnCFrame)
 	model.Parent = workspace
+	if ReplicatedStorage:GetAttribute("Event") == "GiantChef" then
+		pcall(function()
+			model:ScaleTo(Config.GiantScale) -- 🧟 гигантский повар
+		end)
+	end
 
 	local hum = model:FindFirstChildOfClass("Humanoid")
 	hum.WalkSpeed = Config.AIChefWalkSpeed
@@ -262,7 +267,11 @@ local function brain(myGen)
 		end
 		if tRoot then
 			lastSeen = tRoot.Position
-			if (tRoot.Position - root.Position).Magnitude <= Config.CatchRange - 1 then
+			local reach = Config.CatchRange - 1
+			if ReplicatedStorage:GetAttribute("Event") == "GiantChef" then
+				reach = reach * Config.GiantCatchMult
+			end
+			if (tRoot.Position - root.Position).Magnitude <= reach then
 				ctx.fxAll("swing", root.Position)
 				Chef.catchRat(target, nil)
 				lastSeen = nil

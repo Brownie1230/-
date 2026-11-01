@@ -351,7 +351,11 @@ function ChefService.giveTool(player)
 			return
 		end
 		ctx.fxAll("swing", root.Position)
-		local best, bestDist = nil, Config.CatchRange
+		local range = Config.CatchRange
+		if game:GetService("ReplicatedStorage"):GetAttribute("Event") == "GiantChef" then
+			range = range * Config.GiantCatchMult -- гигантский сачок
+		end
+		local best, bestDist = nil, range
 		for _, other in ipairs(Players:GetPlayers()) do
 			local r = nil
 			if other ~= player and isFreeRat(other) then

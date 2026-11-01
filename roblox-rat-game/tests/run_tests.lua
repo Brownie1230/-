@@ -31,6 +31,8 @@ local files = {
 	"ServerScriptService/ChefAI.lua",
 	"ServerScriptService/TestMapBuilder.lua",
 	"ServerScriptService/MonetizationService.lua",
+	"ServerScriptService/PetService.lua",
+	"ServerScriptService/ExtrasService.lua",
 	"StarterPlayerScripts/RatHUD.client.lua",
 	"StarterPlayerScripts/Effects.client.lua",
 	"StarterPlayerScripts/MiniGames.client.lua",
@@ -49,7 +51,7 @@ end
 M.addScript("ModuleScript", "Config", M.ReplicatedStorage, ROOT .. "ReplicatedStorage/Config.lua")
 M.addScript("ModuleScript", "Locale", M.ReplicatedStorage, ROOT .. "ReplicatedStorage/Locale.lua")
 local modules = {}
-for _, n in ipairs({ "RatBuilder", "DataService", "SabotageService", "ChefService", "ChefAI", "TestMapBuilder", "MonetizationService" }) do
+for _, n in ipairs({ "RatBuilder", "DataService", "SabotageService", "ChefService", "ChefAI", "TestMapBuilder", "MonetizationService", "PetService", "ExtrasService" }) do
 	modules[n] = M.addScript("ModuleScript", n, M.ServerScriptService, ROOT .. "ServerScriptService/" .. n .. ".lua")
 end
 local gm = M.addScript("Script", "GameManager", M.ServerScriptService, ROOT .. "ServerScriptService/GameManager.server.lua")
@@ -65,6 +67,12 @@ ConfigMod.GamePasses.VIP = 111
 ConfigMod.GamePasses.DoubleCheese = 222
 ConfigMod.Products[1].Id = 501
 ConfigMod.GamePasses.AllClasses = 333
+-- предсказуемые задания дня для теста
+ConfigMod.QuestPool = {
+	{ Id = "sabotage3", Kind = "Sabotage", Goal = 3, Reward = 40 },
+	{ Id = "eat1", Kind = "Eat", Goal = 1, Reward = 20 },
+	{ Id = "play1", Kind = "Play", Goal = 1, Reward = 30 },
+}
 for _, prod in ipairs(ConfigMod.Products) do
 	if prod.Kind == "escape" then
 		prod.Id = 601
@@ -345,7 +353,7 @@ check(alice:GetAttribute("CoinMult") == 1, "no passes -> mult 1")
 check(alice:FindFirstChild("leaderstats") ~= nil, "leaderstats")
 check(alice.Character ~= nil and alice.Character:FindFirstChild("Hat") ~= nil, "lobby hat on human")
 check(guiText(alice, function(d)
-	return d.Text:find("Шапки") ~= nil
+	return d.Text:find("Магазин") ~= nil
 end) ~= nil, "shop button exists")
 
 local shopEvent = RS.Remotes.ShopAction
@@ -370,7 +378,7 @@ check(alice:GetAttribute("Hat") == "cap", "equip cap")
 
 -- открыть магазин в интерфейсе
 local shopBtn = guiText(alice, function(d)
-	return d:IsA("TextButton") and d.Text == "🎩 Шапки"
+	return d:IsA("TextButton") and d.Text == "🛒 Магазин"
 end)
 click(shopBtn)
 advance(1)
@@ -378,8 +386,12 @@ advance(1)
 ------------------------------------------------------------------------
 -- 3. Раунд 1: соло против повара-робота
 ------------------------------------------------------------------------
--- голосуем за ресторан, событий нет (чтобы проверки были предсказуемы)
-RS:SetAttribute("ForceEvent", "none")
+-- голосуем за ресторан, событие — гигантский повар
+RS:SetAttribute("ForceEvent", "GiantChef")
+check((alice:GetAttribute("Quests") or ""):find("Sabotage:0:3:40:0") ~= nil, "daily quests generated: " .. tostring(alice:GetAttribute("Quests")))
+check(guiText(alice, function(d)
+	return d.Text:find("Задания дня") ~= nil and d.Visible
+end) ~= nil, "quests panel in lobby")
 M.runAs(alice, function()
 	RS.Remotes.VoteMap:FireServer("Restaurant")
 	RS.Remotes.VoteMap:FireServer("NoSuchMap")
@@ -414,6 +426,8 @@ check(alice:GetAttribute("BaseSpeed") == 14, "rat speed 14 got " .. tostring(ali
 check(M.workspace:FindFirstChild("ChefNPC") ~= nil, "AI chef spawned")
 local npc = M.workspace:FindFirstChild("ChefNPC")
 check(npc and toolOf(npc, "Net") ~= nil, "AI holds net")
+check(npc and npc:GetScale() == ConfigMod.GiantScale, "giant chef scaled")
+check(RS:GetAttribute("Event") == "GiantChef", "giant chef event")
 check(npc and npc:FindFirstChild("ChefHat") ~= nil, "AI chef hat")
 -- клиент выставил скорость
 local hum = alice.Character:FindFirstChildOfClass("Humanoid")
@@ -510,6 +524,9 @@ end) ~= nil, "results panel shows defeat")
 check(M.workspace:FindFirstChild("ChefNPC") == nil, "AI removed after round")
 print("Alice coins after round 1: " .. tostring(alice:GetAttribute("Coins")))
 check(alice:GetAttribute("TutorialDone") == true, "tutorial marked done after round")
+check((alice:GetAttribute("Quests") or ""):find("Sabotage:3:3:40:1") ~= nil, "sabotage quest completed")
+check((alice:GetAttribute("Quests") or ""):find("Play:1:1:30:1") ~= nil, "play quest completed")
+RS:SetAttribute("ForceEvent", "none")
 check(alice:GetAttribute("XP") > 0, "xp earned in round 1: " .. tostring(alice:GetAttribute("XP")))
 check(waitUntil(function()
 	return RS:GetAttribute("State") == "Lobby"
@@ -663,6 +680,12 @@ check(waitUntil(function()
 	return RS:GetAttribute("State") == "Ended"
 end, 20), "round 2 ended")
 check(RS:GetAttribute("Winner") == "Rats", "rats won")
+advance(1)
+local lbRow = nil
+for _, b in ipairs(CS:GetTagged("Leaderboard")) do
+	lbRow = b:FindFirstChild("Row1", true)
+end
+check(lbRow ~= nil and lbRow.Text:find("1 🏆") ~= nil, "leaderboard row 1: " .. tostring(lbRow and lbRow.Text))
 advance(0.5)
 check(alice:GetAttribute("Wins") == 1, "alice has 1 win, got " .. tostring(alice:GetAttribute("Wins")))
 check(guiText(alice, function(d)
@@ -808,6 +831,94 @@ for _, p in ipairs({ alice, bob, cara }) do
 end
 advance(0.3)
 check(RS:GetAttribute("Votes_Pizzeria") == 3, "3 votes for pizzeria")
+
+-- ===== Вирусное обновление: коды, питомцы, друзья, паркур =====
+local c1 = alice:GetAttribute("Coins")
+M.runAs(alice, function()
+	RS.Remotes.RedeemCode:FireServer("  tiktok ")
+end)
+advance(1.2)
+check(alice:GetAttribute("Coins") == c1 + 500, "code TIKTOK +500")
+M.runAs(alice, function()
+	RS.Remotes.RedeemCode:FireServer("TIKTOK")
+end)
+advance(1.2)
+M.runAs(alice, function()
+	RS.Remotes.RedeemCode:FireServer("NOPE123")
+end)
+advance(1.2)
+check(alice:GetAttribute("Coins") == c1 + 500, "code only once, bad code rejected")
+check(guiText(alice, function(d)
+	return d.Text:find("Такого кода нет") ~= nil
+end) ~= nil, "bad code message")
+-- код через окно
+click(guiText(alice, function(d)
+	return d:IsA("TextButton") and d.Text == "🎟️ Коды"
+end))
+advance(0.2)
+local box
+for _, d in ipairs(alice.PlayerGui:GetDescendants()) do
+	if d:IsA("TextBox") then
+		box = d
+	end
+end
+check(box ~= nil, "code text box")
+if box then
+	box.Text = "rats"
+	click(guiText(alice, function(d)
+		return d:IsA("TextButton") and d.Text == "OK"
+	end))
+	advance(1.2)
+	check(alice:GetAttribute("Coins") == c1 + 750, "code RATS via UI")
+end
+-- питомец
+M.runAs(alice, function()
+	shopEvent:FireServer("buy", "hamster", "pet")
+end)
+advance(0.5)
+check(alice:GetAttribute("Pet") == "hamster", "pet bought")
+local petFolder = M.workspace:FindFirstChild("Pets")
+local petModel = petFolder and petFolder:FindFirstChild("Pet_hamster")
+check(petModel ~= nil, "pet model exists")
+if petModel then
+	local d = (petModel:GetPivot().Position - rootOf(alice).Position).Magnitude
+	check(d < 7, "pet follows owner, dist " .. string.format("%.1f", d))
+end
+local PetModule = M.require(modules.PetService)
+check(math.abs(PetModule.bonus(alice) - 0.1) < 1e-6, "hamster +10% cheese")
+check((cara:GetAttribute("OwnedPets") or ""):find("goldhamster") ~= nil, "VIP golden hamster")
+M.runAs(alice, function()
+	shopEvent:FireServer("buy", "dragon", "pet")
+end)
+advance(0.3)
+check(not alice:GetAttribute("OwnedPets"):find("dragon"), "dragon locked until level 15")
+-- паркур
+local trophy = CS:GetTagged("ObbyReward")[1]
+local c2 = alice:GetAttribute("Coins")
+getSignal(trophy, "Touched"):Fire(rootOf(alice))
+advance(0.2)
+getSignal(trophy, "Touched"):Fire(rootOf(alice))
+advance(0.2)
+check(alice:GetAttribute("Coins") == c2 + 75, "obby reward once per day")
+-- пригласить
+click(guiText(alice, function(d)
+	return d:IsA("TextButton") and d.Text == "👥 Пригласить"
+end))
+advance(0.1)
+check(M.invites == 1, "invite prompt")
+-- друг заходит
+M.friends[alice.UserId] = { [1004] = true }
+local eve = join("Eve", "en-us")
+advance(1)
+check(eve.UserId == 1004, "eve id")
+check(eve:GetAttribute("FriendBonus") == true and alice:GetAttribute("FriendBonus") == true, "friend bonus for both")
+check(bob:GetAttribute("FriendBonus") ~= true, "no friend bonus for bob")
+check(guiText(eve, function(d)
+	return d.Text:find("friend is playing") ~= nil
+end) ~= nil, "friend message (english)")
+M.runAs(eve, function()
+	RS.Remotes.VoteMap:FireServer("Pizzeria")
+end)
 M.runAs(nil, function()
 	DataService.addCoins(alice, 200)
 end)
@@ -866,6 +977,14 @@ if bob:GetAttribute("Role") == "Rat" then
 		caughtOk = ChefModule.catchRat(bob, nil)
 	end)
 	check(caughtOk == false and not bob:GetAttribute("Caught"), "armor blocks the net")
+	-- эмоция
+	M.runAs(bob, function()
+		RS.Remotes.Emote:FireServer("dance")
+		RS.Remotes.Emote:FireServer("flip")
+		RS.Remotes.Emote:FireServer("hack")
+	end)
+	advance(0.1)
+	check(bob:GetAttribute("Emote") == "dance" and bob:GetAttribute("EmoteN") == 1, "emote dance (cooldown blocks spam)")
 	local uses = bob:GetAttribute("AbilityUses")
 	M.runAs(bob, function()
 		RS.Remotes.Ability:FireServer()
@@ -874,6 +993,7 @@ if bob:GetAttribute("Role") == "Rat" then
 	check(bob:GetAttribute("AbilityUses") == uses, "ability cooldown")
 	advance(3.2)
 	check(not bob:GetAttribute("Armored"), "armor ended")
+	check(bob:GetAttribute("Emote") == nil, "emote ended")
 end
 if cara:GetAttribute("Role") == "Rat" then
 	M.runAs(cara, function()
@@ -937,7 +1057,7 @@ if gold and goldRat then
 	getSignal(gold, "Touched"):Fire(rootOf(goldRat))
 	advance(0.2)
 	local levelBonus = (goldRat:GetAttribute("Level") - l0g) * ConfigMod.LevelUpCheese
-	check(goldRat:GetAttribute("Coins") == c0g + 15 * goldRat:GetAttribute("CoinMult") + levelBonus, "golden cheese reward")
+	check(goldRat:GetAttribute("Coins") >= c0g + 15 * goldRat:GetAttribute("CoinMult") + levelBonus, "golden cheese reward")
 	check(M.workspace:FindFirstChild("GoldenCheese") == nil, "golden cheese removed")
 end
 check(alice:GetAttribute("Role") ~= "Rat" or alice.Character:FindFirstChild("Hat") ~= nil, "crown on rat")
@@ -948,7 +1068,7 @@ if chefPlayer then
 	check(DS_FAIL or M.dataStoreData["player_" .. chefPlayer.UserId] ~= nil, "data saved on leave")
 end
 -- оставшиеся уходят
-for _, p in ipairs({ alice, bob, cara }) do
+for _, p in ipairs({ alice, bob, cara, eve }) do
 	if p.Parent then
 		M.removePlayer(p)
 	end
@@ -959,10 +1079,10 @@ end, 5), "round ends when everyone leaves")
 advance(15)
 
 -- новый игрок с сохранёнными данными
-M.dataStoreData["player_1004"] = { Coins = 77, Wins = 3, Owned = { none = true, cap = true, halo = true, hacked = true }, Hat = "halo" }
+M.dataStoreData["player_1005"] = { Coins = 77, Wins = 3, Owned = { none = true, cap = true, halo = true, hacked = true }, Hat = "halo" }
 local dan = join("Dan")
 advance(1)
-check(dan.UserId == 1004, "dan id")
+check(dan.UserId == 1005, "dan id")
 if not DS_FAIL then
 	check(dan:GetAttribute("Coins") == 77 + 25, "dan coins loaded + daily, got " .. tostring(dan:GetAttribute("Coins")))
 	check(dan:GetAttribute("Wins") == 3, "dan wins loaded")

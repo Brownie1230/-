@@ -113,6 +113,58 @@ Config.Trails = {
 	{ Id = "galaxy", Name = "Галактика", NameEn = "Galaxy", Icon = "🌌", Price = 0, VipOnly = true, Colors = { Color3.fromRGB(120, 60, 255), Color3.fromRGB(255, 80, 220), Color3.fromRGB(60, 200, 255) } },
 }
 
+-- ===== Питомцы: летают за тобой и дают бонус к сыру =====
+Config.Pets = {
+	{ Id = "none", Name = "Без питомца", NameEn = "No pet", Icon = "🚫", Price = 0, Bonus = 0 },
+	{ Id = "roach", Name = "Таракан", NameEn = "Cockroach", Icon = "🪳", Price = 100, Bonus = 0.05, Color = Color3.fromRGB(90, 55, 35) },
+	{ Id = "hamster", Name = "Хомяк", NameEn = "Hamster", Icon = "🐹", Price = 250, Bonus = 0.1, Color = Color3.fromRGB(230, 170, 100) },
+	{ Id = "pigeon", Name = "Голубь", NameEn = "Pigeon", Icon = "🐦", Price = 400, Bonus = 0.15, Color = Color3.fromRGB(150, 155, 170), Flying = true },
+	{ Id = "slime", Name = "Сырный слайм", NameEn = "Cheese slime", Icon = "🟨", Price = 700, Bonus = 0.2, Color = Color3.fromRGB(255, 210, 60) },
+	{ Id = "dragon", Name = "Мини-дракон", NameEn = "Mini dragon", Icon = "🐉", Price = 0, Level = 15, Bonus = 0.25, Color = Color3.fromRGB(80, 200, 110), Flying = true },
+	{ Id = "goldhamster", Name = "Золотой хомяк", NameEn = "Golden hamster", Icon = "🌟", Price = 0, VipOnly = true, Bonus = 0.3, Color = Color3.fromRGB(255, 200, 40) },
+}
+
+-- ===== Коды (для TikTok и YouTube!) =====
+-- Скажи код в видео — игроки введут его в игре и получат сыр. Каждый код — один раз на игрока.
+-- Добавляй свои: ["МОЙКОД"] = 300
+Config.Codes = {
+	RATS = 250,
+	TIKTOK = 500,
+	CHEESE = 150,
+	RELEASE = 300,
+}
+
+-- ===== Ежедневные задания (3 в день) =====
+Config.QuestsPerDay = 3
+Config.QuestPool = {
+	{ Id = "sabotage5", Kind = "Sabotage", Goal = 5, Reward = 60 },
+	{ Id = "sabotage15", Kind = "Sabotage", Goal = 15, Reward = 150 },
+	{ Id = "rescue2", Kind = "Rescue", Goal = 2, Reward = 80 },
+	{ Id = "golden1", Kind = "Golden", Goal = 1, Reward = 70 },
+	{ Id = "eat5", Kind = "Eat", Goal = 5, Reward = 50 },
+	{ Id = "win1", Kind = "Win", Goal = 1, Reward = 100 },
+	{ Id = "play3", Kind = "Play", Goal = 3, Reward = 75 },
+	{ Id = "catch3", Kind = "Catch", Goal = 3, Reward = 90 },
+	{ Id = "repair5", Kind = "Repair", Goal = 5, Reward = 60 },
+	{ Id = "ability5", Kind = "Ability", Goal = 5, Reward = 60 },
+	{ Id = "emote3", Kind = "Emote", Goal = 3, Reward = 40 },
+}
+
+-- ===== Эмоции крыс (Z X C V или кнопка 💃) =====
+Config.Emotes = {
+	{ Id = "dance", Key = "Z", Duration = 3 },
+	{ Id = "flip", Key = "X", Duration = 1.2 },
+	{ Id = "wave", Key = "C", Duration = 2.5 },
+	{ Id = "dead", Key = "V", Duration = 4 },
+}
+Config.EmoteCooldown = 1.5
+
+-- ===== Друзья, паркур, таблица лидеров =====
+Config.FriendBonus = 0.2 -- +20% сыра, если на сервере есть твой друг
+Config.ObbyReward = 75 -- награда за паркур в лобби (раз в день)
+Config.LeaderboardSize = 10
+Config.LeaderboardRefresh = 45 -- сек
+
 -- ===== Классы крыс (способность на F) =====
 -- SpeedMult — скорость, SabotageMult — во сколько раз быстрее ломает (держать E / мини-игры)
 Config.Classes = {
@@ -132,7 +184,9 @@ end
 
 -- ===== События раунда (случайные) =====
 Config.EventChance = 0.35
-Config.Events = { "ChaosNight", "GoldenHour", "Turbo" }
+Config.Events = { "ChaosNight", "GoldenHour", "Turbo", "GiantChef" }
+Config.GiantScale = 1.8 -- «Гигантский повар»: во сколько раз больше
+Config.GiantCatchMult = 1.5 -- и насколько дальше достаёт сачок
 Config.ChaosNightMult = 1.5 -- хаос растёт в 1.5 раза быстрее
 Config.GoldenHourInterval = 12 -- золотой сыр каждые 12 сек
 Config.TurboMult = 1.25 -- все бегают быстрее
@@ -157,6 +211,12 @@ function Config.getTrail(id)
 end
 function Config.getClass(id)
 	return findIn(Config.Classes, id)
+end
+function Config.getPet(id)
+	return findIn(Config.Pets, id)
+end
+function Config.getEmote(id)
+	return findIn(Config.Emotes, id)
 end
 
 -- Активная карта раунда и фильтр «только объекты активной карты»

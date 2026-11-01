@@ -336,6 +336,50 @@ local function animateRat(model, data, dt, t)
 		local fp = p + foot.phase
 		foot.motor.C0 = foot.base * CFrame.new(0, math.max(0, math.sin(fp)) * 0.2 * math.min(moving, 1), math.cos(fp) * 0.3 * math.min(moving, 1))
 	end
+
+	-- 💃 эмоция: поворачиваем всю крысу вокруг центра
+	local owner = Players:GetPlayerFromCharacter(model)
+	local emote = owner and owner:GetAttribute("Emote")
+	if not emote then
+		data.emoteN = nil
+		return
+	end
+	local n = owner:GetAttribute("EmoteN")
+	if data.emoteN ~= n then
+		data.emoteN = n
+		data.emoteStart = t
+	end
+	local u = t - data.emoteStart
+	local E
+	if emote == "dance" then
+		E = CFrame.new(0, math.abs(math.sin(u * 8)) * 0.5, 0) * CFrame.Angles(0, math.sin(u * 4) * 0.7, math.sin(u * 8) * 0.18)
+	elseif emote == "flip" then
+		local k = math.clamp(u / 1.0, 0, 1)
+		E = CFrame.new(0, math.sin(k * math.pi) * 2.8, 0) * CFrame.Angles(-k * 2 * math.pi, 0, 0)
+	elseif emote == "wave" then
+		local k = math.clamp(u / 0.3, 0, 1)
+		E = CFrame.new(0, 0.7 * k, 0.5 * k) * CFrame.Angles(0.95 * k, 0, 0)
+	elseif emote == "dead" then
+		local k = math.clamp(u / 0.35, 0, 1)
+		E = CFrame.new(0, 0.15 * k, 0) * CFrame.Angles(0, 0, math.pi * k)
+	else
+		return
+	end
+	for _, name in ipairs({ "BodyMotor", "HeadMotor", "Tail1Motor" }) do
+		local m = data.motors[name]
+		if m then
+			m.motor.C0 = E * m.motor.C0
+		end
+	end
+	for i, foot in ipairs(data.feet) do
+		local extra = CFrame.new()
+		if emote == "wave" and i == 1 then
+			extra = CFrame.new(0, 0.6 + math.sin(u * 14) * 0.3, -0.3) -- машет лапкой
+		elseif emote == "dead" then
+			extra = CFrame.new(0, math.sin(u * 20 + i) * 0.08, 0) -- дёргает лапками
+		end
+		foot.motor.C0 = E * foot.motor.C0 * extra
+	end
 end
 
 -- ===== Прочее =====

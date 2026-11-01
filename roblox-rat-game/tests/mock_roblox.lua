@@ -987,6 +987,13 @@ for k, v in pairs(textProps) do
 end
 buttonProps.AutoButtonColor = "boolean"
 def("TextButton", "GuiObject", buttonProps, { "Activated", "MouseButton1Click" }, textDefaults)
+local boxProps = {}
+for k, v in pairs(textProps) do
+	boxProps[k] = v
+end
+boxProps.PlaceholderText = "string"
+boxProps.ClearTextOnFocus = "boolean"
+def("TextBox", "GuiObject", boxProps, { "FocusLost", "Focused" }, textDefaults)
 def("UIComponent", "Instance", {})
 def("UICorner", "UIComponent", { CornerRadius = "UDim" })
 def("UIStroke", "UIComponent", {
@@ -1060,7 +1067,7 @@ local creatable = {
 	Accessory = true, Tool = true, StringValue = true, IntValue = true, NumberValue = true, BoolValue = true,
 	ProximityPrompt = true, PointLight = true, SpotLight = true, SurfaceLight = true, Fire = true, Smoke = true,
 	Sparkles = true, ParticleEmitter = true, Trail = true, Sound = true, ScreenGui = true, BillboardGui = true, SurfaceGui = true,
-	Frame = true, ScrollingFrame = true, TextLabel = true, TextButton = true, UICorner = true, UIStroke = true,
+	Frame = true, ScrollingFrame = true, TextLabel = true, TextButton = true, TextBox = true, UICorner = true, UIStroke = true,
 	UIPadding = true, UIListLayout = true, UIGridLayout = true, UIGradient = true, UIScale = true, Highlight = true,
 	Atmosphere = true, BloomEffect = true, ColorCorrectionEffect = true, RemoteEvent = true, Script = true,
 	LocalScript = true, ModuleScript = true, MeshPart = true,
@@ -1661,7 +1668,17 @@ function M.checkRemoteArgs(...)
 	end
 end
 
+M.friends = {} -- [userId] = { [userId] = true }
 ClassMethods.Player = {
+	IsFriendsWith = function(p, userId)
+		if type(userId) ~= "number" then
+			error("IsFriendsWith expects number", 2)
+		end
+		task.wait(0.02)
+		local mine = M.friends[D[p].props.UserId] or {}
+		local theirs = M.friends[userId] or {}
+		return mine[userId] == true or theirs[D[p].props.UserId] == true
+	end,
 	LoadCharacter = function(p)
 		local d = D[p]
 		if d.props.Character then
@@ -1684,7 +1701,15 @@ ClassMethods.Player = {
 }
 
 ClassMethods.Model = {
-	ScaleTo = function() end,
+	ScaleTo = function(m, scale)
+		if type(scale) ~= "number" or scale <= 0 then
+			error("ScaleTo expects positive number", 2)
+		end
+		D[m].scale = scale
+	end,
+	GetScale = function(m)
+		return D[m].scale or 1
+	end,
 }
 
 ClassMethods.Tool = {}
@@ -1940,6 +1965,13 @@ ClassMethods.Players = {
 		end
 		return list
 	end,
+	GetNameFromUserIdAsync = function(ps, id)
+		if type(id) ~= "number" then
+			error("GetNameFromUserIdAsync expects number", 2)
+		end
+		task.wait(0.02)
+		return "User" .. id
+	end,
 	GetPlayerByUserId = function(ps, id)
 		for _, c in ipairs(D[ps].children) do
 			if D[c].class == "Player" and D[c].props.UserId == id then
@@ -2165,7 +2197,53 @@ plainService("DataStoreService", {
 		end
 		return store
 	end,
+	GetOrderedDataStore = function(_, name)
+		if type(name) ~= "string" then
+			error("GetOrderedDataStore expects string", 2)
+		end
+		M.ordered[name] = M.ordered[name] or {}
+		local data = M.ordered[name]
+		local store = {}
+		function store.SetAsync(self, key, value)
+			task.wait(0.02)
+			if M.dataStoreFail then
+				error("Studio access to APIs is not allowed")
+			end
+			if type(value) ~= "number" or value ~= math.floor(value) then
+				error("OrderedDataStore values must be integers")
+			end
+			data[tostring(key)] = value
+		end
+		function store.GetSortedAsync(self, ascending, pageSize)
+			task.wait(0.02)
+			if M.dataStoreFail then
+				error("Studio access to APIs is not allowed")
+			end
+			local list = {}
+			for k, v in pairs(data) do
+				table.insert(list, { key = k, value = v })
+			end
+			table.sort(list, function(a, b)
+				if ascending then
+					return a.value < b.value
+				end
+				return a.value > b.value
+			end)
+			local page = {}
+			for i = 1, math.min(pageSize, #list) do
+				page[i] = list[i]
+			end
+			return {
+				GetCurrentPage = function()
+					return page
+				end,
+				IsFinished = true,
+			}
+		end
+		return store
+	end,
 })
+M.ordered = {}
 
 function M.deepCopy(v)
 	if type(v) ~= "table" then
@@ -2276,6 +2354,19 @@ do
 	})
 	services.MarketplaceService = mps
 end
+
+M.invites = 0
+plainService("SocialService", {
+	PromptGameInvite = function(_, player)
+		if typeof(player) ~= "Instance" then
+			error("PromptGameInvite expects Player", 2)
+		end
+		M.invites = M.invites + 1
+	end,
+	CanSendGameInviteAsync = function()
+		return true
+	end,
+})
 
 plainService("Debris", {
 	AddItem = function(_, inst, t)
