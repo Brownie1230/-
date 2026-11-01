@@ -1,0 +1,45 @@
+{
+ "scenes": [
+  {
+   "start": 0.0,
+   "end": 4.2,
+   "voice": 0.25,
+   "vdur": 2.113,
+   "text": "Bro is dancing right in front of the chef.",
+   "top": "POV: the chef isn't looking 👀"
+  },
+  {
+   "start": 4.2,
+   "end": 8.8,
+   "voice": 5.9,
+   "vdur": 1.207,
+   "text": "Wait... why is he GIANT?!",
+   "top": "WAIT... 😳"
+  },
+  {
+   "start": 8.8,
+   "end": 11.7,
+   "voice": 8.95,
+   "vdur": 0.615,
+   "text": "Backflip. Gone.",
+   "top": "BACKFLIP 🤸"
+  },
+  {
+   "start": 11.7,
+   "end": 15.3,
+   "voice": 11.9,
+   "vdur": 1.474,
+   "text": "Play dead. Works every time.",
+   "top": "PLAY DEAD 💀"
+  },
+  {
+   "start": 15.3,
+   "end": 19.1,
+   "voice": 15.6,
+   "vdur": 1.312,
+   "text": "Code TIKTOK. Go play!",
+   "top": ""
+  }
+ ],
+ "total": 19.4
+}
